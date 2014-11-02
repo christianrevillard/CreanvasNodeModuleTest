@@ -55,7 +55,8 @@ var applyTo = function(element, elementMoving)
 				edges: element.edges,
 				getEdges: element.getEdges,
 				controller:element.controller,
-				getRealXYFromElementXY:element.getRealXYFromElementXY};
+				getRealXYFromElementXY:element.getRealXYFromElementXY,
+				typeName:element.typeName};
 
 		if (element.preMove && !element.preMove(updatedElement))
 		{
