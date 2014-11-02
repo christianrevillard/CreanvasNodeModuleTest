@@ -45,29 +45,36 @@ var applyTo = function(element, elementMoving)
 			return;
 		}
 		
-		// will need a real one here !
-		var updatedElement = {
-				elementX: element.elementX + element.movingSpeed.x * dt, 
-				elementY:element.elementY + element.movingSpeed.y * dt, 
-				elementAngle:element.elementAngle + element.omega * dt,
-				elementScaleX:element.elementScaleSpeed?element.elementScaleX + element.elementScaleSpeed.x * dt : element.elementScaleX,
-				elementScaleY:element.elementScaleSpeed?element.elementScaleY + element.elementScaleSpeed.y * dt : element.elementScaleY,
-				edges: element.edges,
-				getEdges: element.getEdges,
-				controller:element.controller,
-				getRealXYFromElementXY:element.getRealXYFromElementXY,
-				typeName:element.typeName};
+		element.rollbackData = 
+		{
+				elementX: element.elementX, 
+				elementY:element.elementY, 
+				elementAngle:element.elementAngle,
+				elementScaleX:element.elementScaleX,
+				elementScaleY:element.elementScaleY
+		};
 
-		if (element.preMove && !element.preMove(updatedElement))
+		element.elementX = element.elementX + element.movingSpeed.x * dt; 
+		element.elementY = element.elementY + element.movingSpeed.y * dt; 
+		element.elementAngle = element.elementAngle + element.omega * dt;
+		element.elementScaleX = element.elementScaleSpeed?element.elementScaleX + element.elementScaleSpeed.x * dt : element.elementScaleX;
+		element.elementScaleY = element.elementScaleSpeed?element.elementScaleY + element.elementScaleSpeed.y * dt : element.elementScaleY;
+
+		if (element.preMove && !element.preMove())
 		{
 //			console.log('Cannot move  '+ element.id);
+			element.elementX = element.rollbackData.elementX; 
+			element.elementY = element.rollbackData.elementY;
+			element.elementAngle = element.rollbackData.elementAngle;
+			element.elementScaleX = element.rollbackData.elementScaleX;
+			element.elementScaleY = element.rollbackData.elementScaleY;
 			return;
 		}
 
-		element.update('elementX', updatedElement.elementX);
-		element.update('elementY', updatedElement.elementY);				
+		element.update('elementX', element.elementX);
+		element.update('elementY', element.elementY);				
 
-		var newAngle = updatedElement.elementAngle;
+		var newAngle = element.elementAngle;
 		while (newAngle > Math.PI)
 			newAngle-= 2* Math.PI
 		while (newAngle < -Math.PI)
@@ -76,8 +83,8 @@ var applyTo = function(element, elementMoving)
 
 		if (element.elementScaleSpeed)
 		{
-			element.update('elementScaleX', updatedElement.elementScaleX);	
-			element.update('elementScaleY', updatedElement.elementScaleY);	
+			element.update('elementScaleX', element.elementScaleX);	
+			element.update('elementScaleY', element.elementScaleY);	
 		}
 		
 	}, 40);

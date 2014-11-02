@@ -1,29 +1,32 @@
+var collisionSolver = require('../CollisionSolver');
+
 var applyTo = function(element, solidData) {
 	var controller = element.controller;
 	
 	element.isSolid = true;
 	
+	element.mass = solidData.mass || Infinity;
+	element.collisionCoefficient = solidData.collisionCoefficient || 1;
+
 	console.log('Applying solid');
 	
+	controller.collisionSolver = controller.collisionSolver || new collisionSolver.CollisionSolver(controller);
+	
 	// TODO: can other type than Solid implement a Premove: change stuff here...
-	element.preMove = function(updatedElement)
+	element.preMove = function()
 	{
 		if (element.isDuplicable)
 			return true;		
-		
-		var realEdges = element.getRealEdges.call(updatedElement);					
 
-		return element
-			.controller
-			.elements
-			.filter(function(e){return e.id != element.id && e.isSolid && !e.isDuplicable;})
-			.every(
-			function(other)
-			{				 
-				return realEdges
-					.every(function(realEdge){ 
-						return !other.isPointInElementEdges(realEdge.x, realEdge.y);});
-			});
+		if (!element.isSolid)
+			return true;		
+
+		return controller.collisionSolver.solveCollision(element);		
+	};
+	
+	element.getMomentOfInertia = function()
+	{				
+		return element.mass / 12 * (element.elementWidth*element.elementScaleX * element.elementWidth*element.elementScaleX + element.elementHeight*element.elementScaleY * element.elementHeight*element.elementScaleY); // square...};
 	};
 };
 
