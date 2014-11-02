@@ -55,12 +55,12 @@ var CollisionSolver = function(controller) {
 				colVectors.v);	
 
 		speedElement = new vector.Vector(
-				element.movingSpeed.x, 
-				element.movingSpeed.y);
+			element.movingSpeed.x, 
+			element.movingSpeed.y);
 		
 		speedOther = new vector.Vector(
-				other.movingSpeed.x, 
-				other.movingSpeed.y);
+			other.movingSpeed?other.movingSpeed.x:0, 
+			other.movingSpeed?other.movingSpeed.y:0);
 
 		if (element.elementScaleSpeed)
 		{
@@ -83,13 +83,16 @@ var CollisionSolver = function(controller) {
 		var otherMOI = other.fixed ? Infinity:other.getMomentOfInertia();
 
 		var F = element.collisionCoefficient * other.collisionCoefficient * 2 *
-			(localSpeedOther.v - localSpeedElement.v + other.omega * otherRot.z - element.omega * elementRot.z)
+			(localSpeedOther.v - localSpeedElement.v + (other.omega || 0) * otherRot.z - element.omega * elementRot.z)
 			/( 1/otherMass + 1/elementMass + otherRot.z*otherRot.z/otherMOI + elementRot.z*elementRot.z/elementMOI );
 				
 		element.movingSpeed.x += F/elementMass*colVectors.v.x;
 		element.movingSpeed.y += F/elementMass*colVectors.v.y;
-		other.movingSpeed.x -= F/otherMass*colVectors.v.x;
-		other.movingSpeed.y -= F/otherMass*colVectors.v.y;
+		if (other.movingSpeed !== undefined)
+		{
+			other.movingSpeed.x -= F/otherMass*colVectors.v.x;
+			other.movingSpeed.y -= F/otherMass*colVectors.v.y;
+		}
 		element.omega += F * l1 / elementMOI;
 		other.omega -= F * l2 / otherMOI;
 	};
