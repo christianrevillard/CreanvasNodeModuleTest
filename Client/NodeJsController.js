@@ -283,23 +283,22 @@
 		if (width == 0 || height == 0)
 			return null;
 		
-		var edgeResolution = boxData['edgeResolution'] || 50;	
+		var edgeResolution = boxData['edgeResolution'] || 10;	
 		
-		// draw in a 50/50 points matrix
 		var tempCanvas = controller.context.canvas.ownerDocument.createElement('canvas');
 		var temporaryRenderingContext = tempCanvas.getContext("2d");
-//		element.controller.context.canvas.ownerDocument.body.appendChild(tempCanvas);
 
+		//Debug // controller.context.canvas.ownerDocument.body.appendChild(tempCanvas);
 		
-		tempCanvas.width = edgeResolution;
-		tempCanvas.height = edgeResolution;
+		tempCanvas.width = Math.ceil(width / edgeResolution);
+		tempCanvas.height = Math.ceil(height / edgeResolution);
 
 		temporaryRenderingContext.beginPath();
-		temporaryRenderingContext.translate(-edgeResolution*left/width, -edgeResolution*top/height);
-		temporaryRenderingContext.scale(edgeResolution / width, edgeResolution / height);
+		temporaryRenderingContext.translate(-left/edgeResolution, -top/edgeResolution);
+		temporaryRenderingContext.scale(1/edgeResolution, 1/edgeResolution);
 		draw(temporaryRenderingContext);
 		
-		var edgeImage = temporaryRenderingContext.getImageData(0, 0, edgeResolution, edgeResolution);
+		var edgeImage = temporaryRenderingContext.getImageData(0, 0, tempCanvas.width, tempCanvas.height);
 		
 		var startEdge = null;
 		var transparencyLimit = 1;
@@ -310,29 +309,29 @@
 		
 		var checkPoint = function(x,y,edge)
 		{
-			if (edgeImage.data[y*edgeResolution*4 + x*4 + 3] < transparencyLimit)
+			if (edgeImage.data[y*tempCanvas.width*4 + x*4 + 3] < transparencyLimit)
 				return false;
 							
 			var match = false;
 			
 			if (edge == "top")
 			{
-				match = y==0 || edgeImage.data[(y-1)*edgeResolution*4 + x*4 + 3] < transparencyLimit;
+				match = y==0 || edgeImage.data[(y-1)*tempCanvas.width*4 + x*4 + 3] < transparencyLimit;
 				dx = 0.5; dy=0;
 			}
 			if (edge == "left")
 			{
-				match = x==0 || edgeImage.data[y*edgeResolution*4 + (x-1)*4 + 3] < transparencyLimit;
+				match = x==0 || edgeImage.data[y*tempCanvas.width*4 + (x-1)*4 + 3] < transparencyLimit;
 				dx = 0; dy=0.5;
 			}
 			if (edge == "right")
 			{
-				match = x==edgeResolution-1 || edgeImage.data[y*edgeResolution*4 + (x+1)*4 + 3] < transparencyLimit;
+				match = x==tempCanvas.width-1 || edgeImage.data[y*tempCanvas.width*4 + (x+1)*4 + 3] < transparencyLimit;
 				dx = 1; dy=0.5;
 			}
 			if (edge == "bottom")
 			{
-				match = y==edgeResolution-1 || edgeImage.data[(y+1)*edgeResolution*4 + x*4 + 3] < transparencyLimit;
+				match = y==tempCanvas.height-1 || edgeImage.data[(y+1)*tempCanvas.width*4 + x*4 + 3] < transparencyLimit;
 				dx = 0.5; dy=1;
 			};
 
@@ -340,8 +339,8 @@
 				return;
 			
 			edges.push({
-				x: (x + dx)*width/edgeResolution + left,
-				y: (y + dy)*height/edgeResolution + top}); 
+				x: (x + dx)*edgeResolution + left,
+				y: (y + dy)*edgeResolution + top}); 
 
 			imageX = x;
 			imageY = y;
@@ -350,14 +349,14 @@
 			return true;
 		};
 			
-		for (var forX=0;forX<edgeResolution; forX++)
+		for (var forX=0;forX<tempCanvas.width; forX++)
 		{
-			for (var forY=0;forY<edgeResolution; forY++)
+			for (var forY=0;forY<tempCanvas.height; forY++)
 			{
 				if (checkPoint(forX, forY, "top"))
 				{
 					startEdge = {x:imageX, y:imageY};
-					forX = edgeResolution; forY=edgeResolution;
+					forX = tempCanvas.width; forY=tempCanvas.height;
 				}
 			}
 		}
@@ -368,12 +367,12 @@
 			{
 				if (currentEdge == "top")
 				{
-					if (imageX<edgeResolution-1 && imageY>0 && checkPoint(imageX+1, imageY-1, "left"))
+					if (imageX<tempCanvas.width-1 && imageY>0 && checkPoint(imageX+1, imageY-1, "left"))
 					{
 						continue;
 					}
 					
-					if (imageX<edgeResolution-1 && checkPoint(imageX+1, imageY, "top"))
+					if (imageX<tempCanvas.width-1 && checkPoint(imageX+1, imageY, "top"))
 					{
 						continue;
 					}
@@ -385,12 +384,12 @@
 				}
 				else if (currentEdge == "right")
 				{
-					if (imageX<edgeResolution-1 && imageY<edgeResolution-1 && checkPoint(imageX+1, imageY+1, "top"))
+					if (imageX<tempCanvas.width-1 && imageY<tempCanvas.height-1 && checkPoint(imageX+1, imageY+1, "top"))
 					{
 						continue;
 					}
 					
-					if (imageY<edgeResolution-1 && checkPoint(imageX, imageY+1, "right"))
+					if (imageY<tempCanvas.height-1 && checkPoint(imageX, imageY+1, "right"))
 					{
 						continue;
 					}
@@ -402,7 +401,7 @@
 				}
 				else if (currentEdge == "bottom")
 				{
-					if (imageX>0 && imageY<edgeResolution-1 && checkPoint(imageX-1, imageY+1, "right"))
+					if (imageX>0 && imageY<tempCanvas.height-1 && checkPoint(imageX-1, imageY+1, "right"))
 					{
 						continue;
 					}

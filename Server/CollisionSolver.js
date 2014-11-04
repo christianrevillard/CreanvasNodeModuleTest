@@ -97,22 +97,41 @@ var CollisionSolver = function(controller) {
 		other.omega -= F * l2 / otherMOI;
 	};
 
-	var hasCollided = function(element, elementRealEdges, otherElement)
+	var hasCollided = function(element, otherElement)
 	{
-		var collisionPoints = elementRealEdges.filter(function(realEdge){ 			
+		var elementEdges = element.getRealEdges();
+		var otherEdges = otherElement.getRealEdges();
+		
+		if(elementEdges.box.radius + otherEdges.box.radius < element.getDistance(otherElement.elementX, otherElement.elementY))
+			return false;
+			
+		if (elementEdges.box.right < otherEdges.box.left)
+			return false;
+
+		if (otherEdges.box.right < elementEdges.box.left)
+			return false;
+
+		if (elementEdges.box.bottom < otherEdges.box.top)
+			return false;
+
+		if (otherEdges.box.bottom < elementEdges.box.top)
+			return false;
+			
+		var collisionPoints = elementEdges.edges.filter(function(realEdge){ 			
 			return otherElement.isPointInElementEdges(realEdge.x, realEdge.y);			
 		});
+		
+		// find better match by dichotomy.
 		
 		if (collisionPoints.length < 2)
 			return false;
 	
 		updateAfterCollision(element, otherElement, collisionPoints);
+		return true;
 	};
 
 	this.solveCollision = function(element)
 	{			
-		var realEdges = element.getRealEdges();					
-
 		return element
 			.controller
 			.elements
@@ -120,7 +139,7 @@ var CollisionSolver = function(controller) {
 			.every(
 			function(other)
 			{				
-				return !hasCollided(element, realEdges, other);
+				return !hasCollided(element, other);
 			});
 	};
 };

@@ -172,7 +172,7 @@ Element.prototype.isPointInElementEdges = function(x, y) {
 	var element = this;
 	
 	// borderline effect with y, just remove them ! (alt, map to 1.001 or something, or?)
-	var realEdges = element.getRealEdges().filter(function(realEdge){return realEdge.y != y });
+	var realEdges = element.getRealEdges().edges.filter(function(realEdge){return realEdge.y != y });
 
 	if (realEdges.length == 0)
 		return false;;
@@ -221,28 +221,48 @@ Element.prototype.getEdges = function()
 	return this.edges = elementType[0].edges; 	
 }
 
+Element.prototype.getDistance = function(x,y)
+{
+	return Math.sqrt((this.elementX-x)*(this.elementX-x) + (this.elementY-y)*(this.elementY-y));
+};
+
 Element.prototype.getRealEdges  = function()
 {
 	var element = this;
 
 	if (!this.realEdges 
-			|| this.realEdges.x!=this.elementX 
-			|| this.realEdges.y!=this.elementY
-			|| this.realEdges.angle!=this.elementAngle
-			|| this.realEdges.scaleX!=this.elementScaleX
-			|| this.realEdges.scaleY!=this.elementScaleY)
+			|| this.realEdges.edges.length == 0
+			|| this.realEdges.info.x!=this.elementX 
+			|| this.realEdges.info.y!=this.elementY
+			|| this.realEdges.info.angle!=this.elementAngle
+			|| this.realEdges.info.scaleX!=this.elementScaleX
+			|| this.realEdges.info.scaleY!=this.elementScaleY)
 	{
+		var realEdges = this.getEdges().map(function(e){ return element.getRealXYFromElementXY(e)});
+			
 		this.realEdges = 
-			{	x: this.elementX,
-				y: this.elementY,
-				angle: this.elementAngle,
-				scaleX: this.elementScaleX,
-				scaleY: this.elementScaleY,
-				edges: this.getEdges().map(function(e){ return element.getRealXYFromElementXY(e);})
+			{	
+				info:
+				{
+					x: this.elementX,
+					y: this.elementY,
+					angle: this.elementAngle,
+					scaleX: this.elementScaleX,
+					scaleY: this.elementScaleY
+				},
+				edges: realEdges,
+				box:
+				{
+					radius: realEdges.reduce(function(current,edge){ return Math.max(current,element.getDistance(edge.x, edge.y));}, 0),				
+					left: realEdges.reduce(function(current,edge){ return Math.min(current,edge.x);}, Infinity),
+					top: realEdges.reduce(function(current,edge){ return Math.min(current,edge.y);}, Infinity),
+					right: realEdges.reduce(function(current,edge){ return Math.max(current,edge.x);}, 0),
+					bottom: realEdges.reduce(function(current,edge){ return Math.max(current,edge.y);}, 0)				
+				}
 			};
 	}
 
-	return this.realEdges.edges
+	return this.realEdges
 };
 
 exports.Element = Element;

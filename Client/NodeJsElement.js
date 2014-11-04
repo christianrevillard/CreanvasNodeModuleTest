@@ -18,19 +18,6 @@
 		setIdentification(element, identificationData[1]);
 		setImage(element, imageData[1]);
 		setPosition(element, positionData[1]);
-
-/*		setInterval(function(){			
-			if (element.updated)
-			{
-				// testing... Should be more PID stuff
-				element.elementX += 0.1* ((element.updated["elementX"]===undefined?element.elementX:element.updated["elementX"]) - element.elementX);
-				element.elementY += 0.1* ((element.updated["elementY"]===undefined?element.elementY:element.updated["elementY"]) - element.elementY);
-				element.elementZ += 0.1* ((element.updated["elementZ"]===undefined?element.elementZ:element.updated["elementZ"]) - element.elementZ);
-				element.elementScaleX += 0.1* ((element.updated["elementScaleX"]===undefined?element.elementScaleX:element.updated["elementScaleX"]) - element.elementScaleX);
-				element.elementScaleY += 0.1* ((element.updated["elementScaleY"]===undefined?element.elementScaleY:element.updated["elementScaleY"]) - element.elementScaleY);				
-				element.elementAngle += 0.1* ((element.updated["elementAngle"]===undefined?element.elementAngle:element.updated["elementAngle"]) - element.elementAngle);
-			}
-		},40);*/
 		
 		this.drawMyself = function() {
 
@@ -44,7 +31,25 @@
 
 			controller.context.beginPath();
 			element.elementType.draw(controller.context);
-
+			
+			/* Debug edges*/
+			/*
+			if (element.elementType.edges)
+			{
+				var edge = element.elementType.edges[0];
+				controller.context.beginPath();
+				controller.context.moveTo(edge.x, edge.y);
+				element.elementType.edges.forEach(
+						function(edge)
+						{
+							controller.context.lineTo(edge.x, edge.y);
+						}					
+				);
+				controller.context.lineTo(edge.x, edge.y);
+				controller.context.strokeStyle = "#F00";
+				controller.context.stroke();
+			}
+			*/
 			element.controller.context.scale(1/(element.elementScaleX || 1), 1/(element.elementScaleY || 1));
 
 			element.controller.context.rotate(- (element.elementAngle || 0));
