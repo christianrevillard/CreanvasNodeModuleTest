@@ -117,14 +117,67 @@ var CollisionSolver = function(controller) {
 		if (otherEdges.box.bottom < elementEdges.box.top)
 			return false;
 
+		/*
 		var collisionPoints = elementEdges.edges.filter(function(realEdge){ 			
 			return otherElement.isPointInElementEdges(realEdge.x, realEdge.y);			
 		});
+		*/
 		
-		// find better match by dichotomy.
+		var wasIn = undefined;
+		var previousEdge = undefined;
+
+		var collisionSegments = [];
+		var collisionPoints = elementEdges.edges.forEach(function(realEdge){
+			var isIn = otherElement.isPointInElementEdges(realEdge.x, realEdge.y);
+			if (wasIn != undefined && wasIn != isIn)
+			{
+				if(wasIn)
+				{	
+					collisionSegments.push({A:previousEdge, B:realEdge});
+				}
+				else
+				{
+					collisionSegments.push({A:realEdge, B:previousEdge});					
+				}
+			}
+			wasIn = isIn;
+			previousEdge = realEdge;
+		});
 		
-		if (collisionPoints.length < 2)
-			return false;
+		//close the loop;
+		var firstEdge = elementEdges.edges[0];
+		var firstIn = otherElement.isPointInElementEdges(firstEdge.x, firstEdge.y);
+		if (wasIn != firstIn)
+		{
+			if(wasIn)
+			{	
+				collisionSegments.push({A:previousEdge, B:firstEdge});
+			}
+			else
+			{
+				collisionSegments.push({A:firstEdge, B:previousEdge});
+			}
+		}
+		
+		if (collisionSegments.length < 2)
+			return false;		
+		
+		var collisionPoints = collisionSegments.map(function(s){
+			while (Math.abs(s.A.x - s.B.x)>1 || Math.abs(s.A.y - s.B.y)>1)
+			{
+				var x = (s.A.x + s.B.x)/2;
+				var y = (s.A.y + s.B.y)/2;
+				if (otherElement.isPointInElementEdges(x, y))
+				{
+					s.A = {x:x,y:y};
+				}
+				else
+				{
+					s.B = {x:x,y:y};
+				}
+			}
+			return {x:(s.A.x+s.B.x)/2,y:(s.A.y+s.B.y)/2};
+			});
 
 		updateAfterCollision(element, otherElement, collisionPoints);
 				
