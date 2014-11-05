@@ -166,16 +166,28 @@ Element.prototype.removeEventListener = function(id) {
 		e.action = null;
 	});
 };
-	
+
+
 Element.prototype.isPointInElementEdges = function(x, y) {
 
 	var element = this;
 	
-	// borderline effect with y, just remove them ! (alt, map to 1.001 or something, or?)
-	var realEdges = element.getRealEdges().edges.filter(function(realEdge){return realEdge.y != y });
+	// borderline effect with ==y
+	var realEdges = element.getRealCornerEdges().map(
+			function(realEdge){
+				return {x:realEdge.x, y:realEdge.y==y?1.001*realEdge.y:realEdge.y};
+			});
 
 	if (realEdges.length == 0)
 		return false;;
+		
+	var allEdges = element.getRealEdges();
+	
+	if (element.getDistance(x,y)>allEdges.box.radius)
+		return false;
+
+	if (x > allEdges.box.right || x < allEdges.box.left || y > allEdges.box.bottom || y < allEdges.box.top)
+		return false;
 
 	var edgeSegments = [];
 	
@@ -226,6 +238,11 @@ Element.prototype.getDistance = function(x,y)
 	return Math.sqrt((this.elementX-x)*(this.elementX-x) + (this.elementY-y)*(this.elementY-y));
 };
 
+Element.prototype.getRealCornerEdges  = function()
+{
+	return this.getRealEdges().edges.filter(function(edge){ return edge.isCorner;});
+};
+
 Element.prototype.getRealEdges  = function()
 {
 	var element = this;
@@ -238,7 +255,10 @@ Element.prototype.getRealEdges  = function()
 			|| this.realEdges.info.scaleX!=this.elementScaleX
 			|| this.realEdges.info.scaleY!=this.elementScaleY)
 	{
-		var realEdges = this.getEdges().map(function(e){ return element.getRealXYFromElementXY(e)});
+		var realEdges = this.getEdges().map(function(e){ 
+			var xy = element.getRealXYFromElementXY(e);
+			return {x:xy.x, y:xy.y, isCorner:e.isCorner};
+		});
 			
 		this.realEdges = 
 			{	

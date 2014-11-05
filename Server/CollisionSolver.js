@@ -116,7 +116,7 @@ var CollisionSolver = function(controller) {
 
 		if (otherEdges.box.bottom < elementEdges.box.top)
 			return false;
-			
+
 		var collisionPoints = elementEdges.edges.filter(function(realEdge){ 			
 			return otherElement.isPointInElementEdges(realEdge.x, realEdge.y);			
 		});
@@ -125,8 +125,9 @@ var CollisionSolver = function(controller) {
 		
 		if (collisionPoints.length < 2)
 			return false;
-	
+
 		updateAfterCollision(element, otherElement, collisionPoints);
+				
 		return true;
 	};
 
