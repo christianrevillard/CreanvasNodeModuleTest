@@ -1,6 +1,6 @@
 var serverElement = require("./ServerElement");
 
-var Controller = function(applicationSocket, applicationInstance) {
+var Controller = function(applicationSocket, applicationInstance, autoStart) {
 
 	var controller = this;
 
@@ -8,7 +8,11 @@ var Controller = function(applicationSocket, applicationInstance) {
 	
 	var timeScale = 1;
 	var time = 0; // seconds
+	this.paused = !autoStart;
+	
 	controller.setInterval(function() {
+		if (controller.paused)
+			return;
 		time += 10 * timeScale / 1000;
 	}, 10);
 	this.getTime = function() {
@@ -152,6 +156,14 @@ Controller.prototype.removeSocket = function(socket) {
 	{
 		this.stop();
 	}
+};
+
+Controller.prototype.pause = function() {
+	this.paused = true;	
+};
+
+Controller.prototype.resume = function() {
+	this.paused = false;	
 };
 
 Controller.prototype.addSocket = function(socket) {

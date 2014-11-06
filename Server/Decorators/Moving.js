@@ -45,48 +45,61 @@ var applyTo = function(element, elementMoving)
 			return;
 		}
 		
-		element.rollbackData = 
-		{
-				elementX: element.elementX, 
-				elementY:element.elementY, 
-				elementAngle:element.elementAngle,
-				elementScaleX:element.elementScaleX,
-				elementScaleY:element.elementScaleY
-		};
 
-		element.elementX = element.elementX + element.movingSpeed.x * dt; 
-		element.elementY = element.elementY + element.movingSpeed.y * dt; 
-		element.elementAngle = element.elementAngle + element.omega * dt;
-		element.elementScaleX = element.elementScaleSpeed?element.elementScaleX + element.elementScaleSpeed.x * dt : element.elementScaleX;
-		element.elementScaleY = element.elementScaleSpeed?element.elementScaleY + element.elementScaleSpeed.y * dt : element.elementScaleY;
+		dElementX = element.movingSpeed.x * dt; 
+		dElementY = element.movingSpeed.y * dt; 
+		dElementAngle = element.omega * dt;
+		dElementScaleX = element.elementScaleSpeed?element.elementScaleSpeed.x * dt : 0;
+		dElementScaleY = element.elementScaleSpeed?element.elementScaleSpeed.y * dt : 0;
 
-		if (element.preMove && !element.preMove())
-		{
-//			console.log('Cannot move  '+ element.id);
-			element.elementX = element.rollbackData.elementX; 
-			element.elementY = element.rollbackData.elementY;
-			element.elementAngle = element.rollbackData.elementAngle;
-			element.elementScaleX = element.rollbackData.elementScaleX;
-			element.elementScaleY = element.rollbackData.elementScaleY;
-			return;
-		}
-
-		element.update('elementX', element.elementX);
-		element.update('elementY', element.elementY);				
-
-		var newAngle = element.elementAngle;
-		while (newAngle > Math.PI)
-			newAngle-= 2* Math.PI
-		while (newAngle < -Math.PI)
-			newAngle+= 2* Math.PI
-		element.update('elementAngle', newAngle );
-
-		if (element.elementScaleSpeed)
-		{
-			element.update('elementScaleX', element.elementScaleX);	
-			element.update('elementScaleY', element.elementScaleY);	
-		}
 		
+		var discret = Math.ceil(Math.max(Math.abs(dElementX),Math.abs(dElementY)));
+		
+		for (var inc=0; inc<discret; inc++)
+		{
+			element.rollbackData = 
+			{
+					elementX: element.elementX, 
+					elementY:element.elementY, 
+					elementAngle:element.elementAngle,
+					elementScaleX:element.elementScaleX,
+					elementScaleY:element.elementScaleY
+			};
+	
+			element.elementX += dElementX/discret; 
+			element.elementY += dElementY/discret; 
+			element.elementAngle += dElementAngle/discret;
+			element.elementScaleX += dElementScaleX/discret;
+			element.elementScaleY += dElementScaleY/discret;
+	
+			if (element.preMove && !element.preMove())
+			{
+	//			console.log('Cannot move  '+ element.id);
+				element.elementX = element.rollbackData.elementX; 
+				element.elementY = element.rollbackData.elementY;
+				element.elementAngle = element.rollbackData.elementAngle;
+				element.elementScaleX = element.rollbackData.elementScaleX;
+				element.elementScaleY = element.rollbackData.elementScaleY;
+				return;
+			}
+			
+			element.update('elementX', element.elementX);
+			element.update('elementY', element.elementY);				
+
+			var newAngle = element.elementAngle;
+			while (newAngle > Math.PI)
+				newAngle-= 2* Math.PI
+			while (newAngle < -Math.PI)
+				newAngle+= 2* Math.PI
+			element.update('elementAngle', newAngle );
+
+			if (element.elementScaleSpeed)
+			{
+				element.update('elementScaleX', element.elementScaleX);	
+				element.update('elementScaleY', element.elementScaleY);	
+			}
+
+		}
 	}, 40);
 		
 };

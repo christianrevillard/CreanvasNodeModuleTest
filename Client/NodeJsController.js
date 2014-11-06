@@ -305,19 +305,21 @@
 		if (width == 0 || height == 0)
 			return null;
 		
-		var edgeResolution = boxData['edgeResolution'] || 10;	
+		var edgeResolution = boxData['edgeResolution'] || 10;
+		var edgeResolutionX  = Math.min(edgeResolution, width/10); // at leat 10 points in tempCanvas	
+		var edgeResolutionY = Math.min(edgeResolution, height/10); // at leat 10 points in tempCanvas
 		
 		var tempCanvas = controller.context.canvas.ownerDocument.createElement('canvas');
 		var temporaryRenderingContext = tempCanvas.getContext("2d");
 
 		//Debug // controller.context.canvas.ownerDocument.body.appendChild(tempCanvas);
 		
-		tempCanvas.width = Math.ceil(width / edgeResolution);
-		tempCanvas.height = Math.ceil(height / edgeResolution);
+		tempCanvas.width = Math.ceil(width / edgeResolutionX);
+		tempCanvas.height = Math.ceil(height / edgeResolutionY);
 
 		temporaryRenderingContext.beginPath();
-		temporaryRenderingContext.translate(-left/edgeResolution, -top/edgeResolution);
-		temporaryRenderingContext.scale(1/edgeResolution, 1/edgeResolution);
+		temporaryRenderingContext.translate(-left/edgeResolutionX, -top/edgeResolutionY);
+		temporaryRenderingContext.scale(1/edgeResolutionX, 1/edgeResolutionY);
 		draw(temporaryRenderingContext);
 		
 		var edgeImage = temporaryRenderingContext.getImageData(0, 0, tempCanvas.width, tempCanvas.height);
@@ -361,8 +363,8 @@
 				return;
 			
 			edges.push({
-				x: (x + dx)*edgeResolution + left,
-				y: (y + dy)*edgeResolution + top,
+				x: (x + dx)*edgeResolutionX + left,
+				y: (y + dy)*edgeResolutionY + top,
 				isCorner: isCorner}); 
 
 			imageX = x;
