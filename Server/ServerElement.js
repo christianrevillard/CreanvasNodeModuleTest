@@ -44,18 +44,17 @@ var setImage = function(element, imageData) {
 	element.elementHeight = height || (element.bottom - element.top);
 
 	// scaling decorator ?? => should be
-	element.update('elementScaleX', imageData["scaleX"] || 1);
-	element.update('elementScaleY', imageData["scaleY"] || 1);
-
-	element.update('typeName', imageData["typeName"]);
+	element.elementScaleX = imageData["scaleX"] || 1;
+	element.elementScaleY = imageData["scaleY"] || 1;
+	element.typeName = imageData["typeName"];
 };
 
 var setPosition = function(element, position) {
 	// position prop
-	element.update('elementX', position["x"] || 0);
-	element.update('elementY', position["y"] || 0);
-	element.update('elementZ', position["z"] || 0);
-	element.update('elementAngle', position["angle"] || 0);
+	element.elementX = position["x"] || 0;
+	element.elementY = position["y"] || 0;
+	element.elementZ = position["z"] || 0;
+	element.elementAngle = position["angle"] || 0;
 };
 
 Element.prototype.update = function(field, value) {

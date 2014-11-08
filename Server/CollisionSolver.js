@@ -32,6 +32,11 @@ var CollisionSolver = function(controller) {
 	
 	var updateAfterCollision = function (element, other, collisionPoints)
 	{
+		if (element.mass == Infinity && other.mass == Infinity)
+		{
+			return;
+		}
+				
 		var 
 			colVectors, speedElement, speedOther, localSpeedElement, localSpeedOther, centerCollisionElement,l1,
 			centerCollisionOther,l2;
@@ -55,8 +60,8 @@ var CollisionSolver = function(controller) {
 				colVectors.v);	
 
 		speedElement = new vector.Vector(
-			element.movingSpeed.x, 
-			element.movingSpeed.y);
+			element.movingSpeed?element.movingSpeed.x:0, 
+			element.movingSpeed?element.movingSpeed.y:0);
 		
 		speedOther = new vector.Vector(
 			other.movingSpeed?other.movingSpeed.x:0, 
@@ -83,18 +88,27 @@ var CollisionSolver = function(controller) {
 		var otherMOI = other.fixed ? Infinity:other.getMomentOfInertia();
 
 		var F = element.collisionCoefficient * other.collisionCoefficient * 2 *
-			(localSpeedOther.v - localSpeedElement.v + (other.omega || 0) * otherRot.z - element.omega * elementRot.z)
+			(localSpeedOther.v - localSpeedElement.v + (other.omega || 0) * otherRot.z - (element.omega || 0) * elementRot.z)
 			/( 1/otherMass + 1/elementMass + otherRot.z*otherRot.z/otherMOI + elementRot.z*elementRot.z/elementMOI );
-				
+
+		if (!element.movingSpeed)
+		{
+			element.movingSpeed = {x:0,y:0};
+		}
+
 		element.movingSpeed.x += F/elementMass*colVectors.v.x;
 		element.movingSpeed.y += F/elementMass*colVectors.v.y;
-		if (other.movingSpeed !== undefined)
+		
+		if (!other.movingSpeed)
 		{
-			other.movingSpeed.x -= F/otherMass*colVectors.v.x;
-			other.movingSpeed.y -= F/otherMass*colVectors.v.y;
+			other.movingSpeed = {x:0,y:0};
 		}
-		element.omega += F * l1 / elementMOI;
-		other.omega -= F * l2 / otherMOI;
+
+		other.movingSpeed.x -= F/otherMass*colVectors.v.x;
+		other.movingSpeed.y -= F/otherMass*colVectors.v.y;
+		
+		element.omega = (element.omega || 0) + F * l1 / elementMOI;
+		other.omega = (other.omega || 0) - F * l2 / otherMOI;		
 	};
 
 	var hasCollided = function(element, otherElement)
@@ -116,12 +130,6 @@ var CollisionSolver = function(controller) {
 
 		if (otherEdges.box.bottom < elementEdges.box.top)
 			return false;
-
-		/*
-		var collisionPoints = elementEdges.edges.filter(function(realEdge){ 			
-			return otherElement.isPointInElementEdges(realEdge.x, realEdge.y);			
-		});
-		*/
 		
 		var wasIn = undefined;
 		var previousEdge = undefined;
@@ -178,7 +186,7 @@ var CollisionSolver = function(controller) {
 			}
 			return {x:(s.A.x+s.B.x)/2,y:(s.A.y+s.B.y)/2};
 			});
-
+		
 		updateAfterCollision(element, otherElement, collisionPoints);
 				
 		return true;

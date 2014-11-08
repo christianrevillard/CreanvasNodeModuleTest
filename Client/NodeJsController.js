@@ -10,7 +10,7 @@
 	creanvas.NodeJsController = function(controllerData) {
 		var controller = this;
 		controller.refreshTime = controllerData["controller.refreshTime"] || creanvas.NodeJsController.DEFAULT_REFRESH_TIME;
-		this.clientToServerBuffering = 50;
+		this.clientToServerBuffering = 20;
 		
 		var canvas = controllerData["canvas"];
 		this.logger = controllerData['log'];		
@@ -25,20 +25,14 @@
 
 		this.emitToServer = function (action, actionData, overrideActionKey)
 		{
-			if (overrideActionKey && emitBuffer.length>0)
+			if (overrideActionKey)
 			{
-				var toOverride = emitBuffer.filter(function(e){ return e.overrideActionKey == overrideActionKey;});
-				
-				if (toOverride.length>0)
-				{
-					toOverride.forEach(function(e){ e.actionData = actionData;});
-					return;
-				}
+				emitBuffer = emitBuffer.filter(function(e){ return e.overrideActionKey != overrideActionKey;});
 			}
 
 			emitBuffer.push({action:action, actionData:actionData, overrideActionKey:overrideActionKey});
 		};
-		
+
 		setInterval(
 			function()
 			{
@@ -55,7 +49,7 @@
 				});
 			},
 			controller.clientToServerBuffering);		
-		
+
 		if (DEBUG) this.logMessage('Starting controller');
 		
 		controller.elements = [];

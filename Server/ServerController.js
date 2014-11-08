@@ -56,7 +56,7 @@ var Controller = function(applicationSocket, applicationInstance, autoStart) {
 				controller.removeElement(e);
 			});
 		}
-	}, 40);
+	}, 20);
 
 	this.applicationInstanceEmit = function(command, data) {
 		applicationSocket.to(this.applicationInstance).emit(command,
@@ -131,6 +131,9 @@ Controller.prototype.addElement = function() {
 	 * width:element.elementWidth, height:element.elementHeight,
 	 * elementType:element.elementType});
 	 */
+	
+	element.fullUpdate();
+	
 	return element;
 };
 

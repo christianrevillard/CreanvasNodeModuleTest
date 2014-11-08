@@ -15,13 +15,13 @@ var applyTo = function(element, solidData) {
 	// TODO: can other type than Solid implement a Premove: change stuff here...
 	element.preMove = function()
 	{
-		if (element.isDuplicable)
+		if (this.isDuplicable)
 			return true;		
 
-		if (!element.isSolid)
+		if (!this.isSolid)
 			return true;		
 
-		return controller.collisionSolver.solveCollision(element);		
+		return controller.collisionSolver.solveCollision(this);		
 	};
 	
 	element.getMomentOfInertia = function()
