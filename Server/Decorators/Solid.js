@@ -1,4 +1,5 @@
 var collisionSolver = require('../CollisionSolver');
+var moving = require("./Moving");
 
 var applyTo = function(element, solidData) {
 	var controller = element.controller;
@@ -12,9 +13,12 @@ var applyTo = function(element, solidData) {
 	
 	controller.collisionSolver = controller.collisionSolver || new collisionSolver.CollisionSolver(controller);
 	
+	if (!element.movingElement)
+		moving.applyTo(element, {});
+
 	// TODO: can other type than Solid implement a Premove: change stuff here...
 	element.preMove = function()
-	{
+	{		
 		if (this.isDuplicable)
 			return true;		
 

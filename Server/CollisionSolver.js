@@ -59,24 +59,26 @@ var CollisionSolver = function(controller) {
 				centerCollisionOther,
 				colVectors.v);	
 
-		speedElement = new vector.Vector(
-			element.movingSpeed?element.movingSpeed.x:0, 
-			element.movingSpeed?element.movingSpeed.y:0);
+		speedElement = element.movingElement ? new vector.Vector(
+			element.movingElement.movingSpeed?element.movingElement.movingSpeed.x:0, 
+			element.movingElement.movingSpeed?element.movingElement.movingSpeed.y:0)
+		: new vector.Vector(0,0);
 		
-		speedOther = new vector.Vector(
-			other.movingSpeed?other.movingSpeed.x:0, 
-			other.movingSpeed?other.movingSpeed.y:0);
+		speedOther = other.movingElement ? new vector.Vector(
+			other.movingElement.movingSpeed?other.movingElement.movingSpeed.x:0, 
+			other.movingElement.movingSpeed?other.movingElement.movingSpeed.y:0):
+				new vector.Vector(0,0);
 
-		if (element.elementScaleSpeed)
+		if (element.movingElement && element.movingElement.elementScaleSpeed)
 		{
-			speedElement.x += centerCollisionElement.x*element.elementScaleSpeed.x;
-			speedElement.y += centerCollisionElement.y*element.elementScaleSpeed.y;
+			speedElement.x += centerCollisionElement.x*element.movingElement.elementScaleSpeed.x;
+			speedElement.y += centerCollisionElement.y*element.movingElement.elementScaleSpeed.y;
 		};
 
-		if (other.elementScaleSpeed)
+		if (other.movingElement && other.movingElement.elementScaleSpeed)
 		{
-			speedOther.x += centerCollisionOther.x*other.elementScaleSpeed.x;
-			speedOther.y += centerCollisionOther.y*other.elementScaleSpeed.y;
+			speedOther.x += centerCollisionOther.x*other.movingElement.elementScaleSpeed.x;
+			speedOther.y += centerCollisionOther.y*other.movingElement.elementScaleSpeed.y;
 		};
 
 		localSpeedElement = speedElement.getCoordinates(colVectors);
@@ -91,24 +93,26 @@ var CollisionSolver = function(controller) {
 			(localSpeedOther.v - localSpeedElement.v + (other.omega || 0) * otherRot.z - (element.omega || 0) * elementRot.z)
 			/( 1/otherMass + 1/elementMass + otherRot.z*otherRot.z/otherMOI + elementRot.z*elementRot.z/elementMOI );
 
-		if (!element.movingSpeed)
+		// should not be needed... do it better
+/*		if (!element.movingSpeed)
 		{
 			element.movingSpeed = {x:0,y:0};
-		}
+		}*/
 
-		element.movingSpeed.x += F/elementMass*colVectors.v.x;
-		element.movingSpeed.y += F/elementMass*colVectors.v.y;
+		// require moving for collidable 
+		element.movingElement.movingSpeed.x += F/elementMass*colVectors.v.x;
+		element.movingElement.movingSpeed.y += F/elementMass*colVectors.v.y;
 		
-		if (!other.movingSpeed)
+/*		if (!other.movingSpeed)
 		{
 			other.movingSpeed = {x:0,y:0};
-		}
+		}*/
 
-		other.movingSpeed.x -= F/otherMass*colVectors.v.x;
-		other.movingSpeed.y -= F/otherMass*colVectors.v.y;
+		other.movingElement.movingSpeed.x -= F/otherMass*colVectors.v.x;
+		other.movingElement.movingSpeed.y -= F/otherMass*colVectors.v.y;
 		
-		element.omega = (element.omega || 0) + F * l1 / elementMOI;
-		other.omega = (other.omega || 0) - F * l2 / otherMOI;		
+		element.movingElement.omega += F * l1 / elementMOI;
+		other.movingElement.omega -= F * l2 / otherMOI;		
 	};
 
 	var hasCollided = function(element, otherElement)
@@ -135,10 +139,12 @@ var CollisionSolver = function(controller) {
 		var previousEdge = undefined;
 
 		var collisionSegments = [];
-		var collisionPoints = elementEdges.edges.forEach(function(realEdge){
+		var collisionPoints = 0;
+		elementEdges.edges.forEach(function(realEdge){
 			var isIn = otherElement.isPointInElementEdges(realEdge.x, realEdge.y);
 			if (wasIn != undefined && wasIn != isIn)
 			{
+				collisionPoints++;
 				if(wasIn)
 				{	
 					collisionSegments.push({A:previousEdge, B:realEdge});
@@ -152,11 +158,13 @@ var CollisionSolver = function(controller) {
 			previousEdge = realEdge;
 		});
 		
+		
 		//close the loop;
 		var firstEdge = elementEdges.edges[0];
 		var firstIn = otherElement.isPointInElementEdges(firstEdge.x, firstEdge.y);
 		if (wasIn != firstIn)
 		{
+			collisionPoints++;
 			if(wasIn)
 			{	
 				collisionSegments.push({A:previousEdge, B:firstEdge});
@@ -166,7 +174,10 @@ var CollisionSolver = function(controller) {
 				collisionSegments.push({A:firstEdge, B:previousEdge});
 			}
 		}
-		
+
+//		if (collisionPoints<2)
+	//		return;
+
 		if (collisionSegments.length < 2)
 			return false;		
 		
@@ -186,8 +197,14 @@ var CollisionSolver = function(controller) {
 			}
 			return {x:(s.A.x+s.B.x)/2,y:(s.A.y+s.B.y)/2};
 			});
-		
+		console.log("Element: " + JSON.stringify({x:element.elementX.toFixed(2), y:element.elementY.toFixed(2)}));
+		console.log("OtherEl: " + JSON.stringify({x:otherElement.elementX.toFixed(2), y:otherElement.elementY.toFixed(2)}));
+		console.log("Collisi: " + JSON.stringify(collisionPoints));
+		console.log("ElBefore: " + JSON.stringify({vx:element.movingSpeed?element.movingSpeed.x.toFixed(2):0, vy:element.movingSpeed?element.movingSpeed.y.toFixed(2):0, o:element.omega?element.omega.toFixed(2):0}));		
+		console.log("OeBefore: " + JSON.stringify({vx:otherElement.movingSpeed?otherElement.movingSpeed.x.toFixed(2):0, vy:otherElement.movingSpeed?otherElement.movingSpeed.y.toFixed(2):0, o:otherElement.omega?otherElement.omega.toFixed(2):0}));
 		updateAfterCollision(element, otherElement, collisionPoints);
+		console.log("ElAfter: " + JSON.stringify({vx:element.movingSpeed?element.movingSpeed.x.toFixed(2):0, vy:element.movingSpeed?element.movingSpeed.y.toFixed(2):0, o:element.omega?element.omega.toFixed(2):0}));		
+		console.log("OeAfter: " + JSON.stringify({vx:otherElement.movingSpeed?otherElement.movingSpeed.x.toFixed(2):0, vy:otherElement.movingSpeed?otherElement.movingSpeed.y.toFixed(2):0, o:otherElement.omega?otherElement.omega.toFixed(2):0}));
 				
 		return true;
 	};

@@ -47,6 +47,16 @@ var setImage = function(element, imageData) {
 	element.elementScaleX = imageData["scaleX"] || 1;
 	element.elementScaleY = imageData["scaleY"] || 1;
 	element.typeName = imageData["typeName"];
+	
+	if (imageData["isPointInElementEdges"])
+		element.isPointInElementEdges = imageData["isPointInElementEdges"];
+
+	if (imageData["getEdges"])
+		element.getEdges = imageData["getEdges"];
+
+	element.experimentalIsPointInElement = imageData["experimentalIsPointInElement"];
+
+	element.experimentalGetEdgePoint = imageData["experimentalGetEdgePoint"];
 };
 
 var setPosition = function(element, position) {
