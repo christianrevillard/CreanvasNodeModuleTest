@@ -44,9 +44,7 @@ var setImage = function(element, elementTemplate) {
 	element.box.right = elementTemplate.box.right == 0 ? 0 : elementTemplate.box.right || (element.box.left + width);
 	element.box.width = width || (element.box.right - element.box.left);
 	element.box.height = height || (element.box.bottom - element.box.top);
-	
-	console.log ('w: ' + 	element.box.width + ', h: ' + 	element.box.height);
-	
+		
 	if (elementTemplate["isPointInElementEdges"])
 		element.isPointInElementEdges = elementTemplate["isPointInElementEdges"];
 

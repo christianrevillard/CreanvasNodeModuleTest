@@ -32,7 +32,7 @@ var CollisionSolver = function(controller) {
 	
 	var updateAfterCollision = function (element, other, collisionPoints)
 	{
-		if (element.mass == Infinity && other.mass == Infinity)
+		if (element.solid.mass == Infinity && other.solid.mass == Infinity)
 		{
 			return;
 		}
@@ -84,21 +84,16 @@ var CollisionSolver = function(controller) {
 		localSpeedElement = speedElement.getCoordinates(colVectors);
 		localSpeedOther = speedOther.getCoordinates(colVectors);
 
-		console.log('localSpeedOther.v: ' + localSpeedOther.v);
-		console.log('localSpeedElement.v: ' + localSpeedElement.v);
+		var elementMass = element.fixedPoint ? Infinity:element.solid.mass;
+		var otherMass = other.fixedPoint ? Infinity:other.solid.mass;
+		var elementMOI = element.fixed ? Infinity:element.solid.getMomentOfInertia();
+		var otherMOI = other.fixed ? Infinity:other.solid.getMomentOfInertia();
 
-		var elementMass = element.fixedPoint ? Infinity:element.mass;
-		var otherMass = other.fixedPoint ? Infinity:other.mass;
-		var elementMOI = element.fixed ? Infinity:element.getMomentOfInertia();
-		var otherMOI = other.fixed ? Infinity:other.getMomentOfInertia();
-
-		var F = element.collisionCoefficient * other.collisionCoefficient * 2 *
+		var F = element.solid.collisionCoefficient * other.solid.collisionCoefficient * 2 *
 			(localSpeedOther.v - localSpeedElement.v 
 					+ other.moving.speed.angle * otherRot.z 
 					- element.moving.speed.angle * elementRot.z)
 			/( 1/otherMass + 1/elementMass + otherRot.z*otherRot.z/otherMOI + elementRot.z*elementRot.z/elementMOI );
-
-		console.log('F: ' + F);
 
 		element.moving.speed.x += F/elementMass*colVectors.v.x;
 		element.moving.speed.y += F/elementMass*colVectors.v.y;
@@ -203,7 +198,7 @@ var CollisionSolver = function(controller) {
 		return element
 			.controller
 			.elements
-			.filter(function(e){return e.id != element.id && e.isSolid && !e.duplicable;})
+			.filter(function(e){return e.id != element.id && e.solid && !e.duplicable;})
 			.every(
 			function(other)
 			{				

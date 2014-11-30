@@ -10,25 +10,37 @@ var MovingElement = function(parent, elementMoving)
 	
 	moving.parent = parent;
 	
+	elementMoving.speed = elementMoving.speed || {};
+	
 	moving.speed = {
-		x: elementMoving.speed ? (elementMoving.speed.x || 0) : 0, 
-		y: elementMoving.speed ? (elementMoving.speed.y || 0) : 0, 
-		angle: elementMoving.speed ? (elementMoving.speed.angle || 0) : 0
+		x: elementMoving.speed.x || 0, 
+		y: elementMoving.speed.y || 0, 
+		angle: elementMoving.speed.angle || 0
 	};
 	
+	elementMoving.acceleration = elementMoving.acceleration || {};
+
 	moving.acceleration = { 
-		x: elementMoving.acceleration ? (elementMoving.acceleration.x || 0) : 0, 
-		y: elementMoving.acceleration ? (elementMoving.acceleration.y || 0) : 0
+		x: elementMoving.acceleration.x || 0, 
+		y: elementMoving.acceleration.y || 0,
+		angle: elementMoving.acceleration.angle || 0
 	};
 
-	moving.scaleSpeed = { x: 0, y: 0 };
+	elementMoving.scaleSpeed = elementMoving.scaleSpeed || {};
+
+	moving.scaleSpeed = { 
+		x: elementMoving.scaleSpeed.x || 0, 
+		y: elementMoving.scaleSpeed.y || 0
+	};
+
+	elementMoving.movingLimits = elementMoving.movingLimits || {};
 
 	moving.movingLimits = {
-		vMax: elementMoving.movingLimits? (elementMoving.vMax || Infinity) : Infinity,
-		xMin: elementMoving.movingLimits? (elementMoving.xMin || -Infinity) : -Infinity,
-		yMin: elementMoving.movingLimits? (elementMoving.yMin || -Infinity) : -Infinity,
-		xMax: elementMoving.movingLimits? (elementMoving.xMax || Infinity) : Infinity,
-		yMax: elementMoving.movingLimits? (elementMoving.yMax || Infinity) : Infinity
+		vMax: elementMoving.movingLimits.vMax === 0 ? 0 : elementMoving.movingLimits.vMax || Infinity,
+		xMin: elementMoving.movingLimits.xMin === 0 ? 0 : elementMoving.movingLimits.xMin || -Infinity,
+		yMin: elementMoving.movingLimits.yMin === 0 ? 0 : elementMoving.movingLimits.yMin || -Infinity,
+		xMax: elementMoving.movingLimits.xMax === 0 ? 0 : elementMoving.movingLimits.xMax || Infinity,
+		yMax: elementMoving.movingLimits.yMax === 0 ? 0 : elementMoving.movingLimits.yMax || Infinity
 	};
 	
 	moving.lastUpdated = moving.parent.controller.getTime();
@@ -124,7 +136,7 @@ MovingElement.prototype.move = function()
 		moving.parent.scale.x += dElementScaleX/discret;
 		moving.parent.scale.y += dElementScaleY/discret;
 
-		if (moving.parent.preMove && !moving.parent.preMove())
+		if (moving.parent.solid && !moving.parent.solid.preMove())
 		{
 //			console.log('Cannot move  '+ element.id);
 			moving.parent.position.x = moving.rollbackData.x; 

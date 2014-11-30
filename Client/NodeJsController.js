@@ -1,9 +1,3 @@
-// IN progress
-// client side of the controller
-// register elements locally, register them on the server
-// client controller (here) does the display on request from the server
-// client event (mouse) to be send to the server- hit: local? server? TBD
-
 (function(){
 	var creanvas = CreJs.CreanvasNodeClient;
 	
@@ -80,10 +74,7 @@
 				
 				if (els.length>0) { 
 					// updates			
-					var el = els[0];
-					
-//					el.updated = updated;
-
+					var el = els[0];					
 					el.x = updated["x"]===undefined?el.x:updated["x"];
 					el.y = updated["y"]===undefined?el.y:updated["y"];
 					el.z = updated["z"]===undefined?el.z:updated["z"];
@@ -99,14 +90,8 @@
 				else {
 					//inserts
 					if (DEBUG) controller.logMessage('Adding element ' + updated['typeName'] + ' in (' + updated["x"] + ',' + updated["y"] + ',' + updated["z"] +')');
-						
-					var element = controller.add(
-							["name",updated["name"]],
-							["image", 
-							 	{"scaleX":updated["scaleX"],
-								"scaleY":updated["scaleY"],
-								"elementType" :controller.elementTypes.filter(function(e){ return e.typeName == updated['typeName'];})[0]}],
-							["position", {"x": updated["x"], "y": updated["y"], "z": updated["z"], "angle":updated["angle"]}]);
+					updated.elementType = controller.elementTypes.filter(function(e){ return e.typeName == updated['typeName'];})[0];
+					var element = controller.add(updated);
 					element.id = updated.id;
 				}
 			});
@@ -179,10 +164,13 @@
 				context.fillStyle = creanvas.NodeJsController.DEFAULT_BACKGROUND_COLOUR;
 				context.fillRect(0,0,controller.context.canvas.width/controller.lengthScale,controller.context.canvas.height/controller.lengthScale);};
 		
-		var background = controller.add(
-				['name','background'],
-				['image', {"elementType": {draw: draw}}],
-				["position", {"x": 0, "y": 0, "z": -Infinity}]);
+		var background = controller.add({			
+			'name': 'background',
+			'elementType': {draw: draw},
+			'x': 0, 
+			'y': 0, 
+			'z': -Infinity
+			});
 
 		background.id = 0;
 	};
@@ -485,7 +473,7 @@
 				});
 	};
 
-	creanvas.NodeJsController.prototype.add  = function ()
+	creanvas.NodeJsController.prototype.add  = function (elementTemplate)
 	{
 		var controller = this;
 		
@@ -493,11 +481,7 @@
 
 		var args = [].slice.call(arguments);
 
-		var identificationData = args.filter(function(arg){ return arg && arg[0]=="name";})[0] || ["name","Unknown"];
-		var imageData = args.filter(function(arg){ return arg && arg[0]=="image";})[0]; // mandatory
-		var positionData = args.filter(function(arg){ return arg && arg[0]=="position";})[0]; // mandatory
-		
-		var element = new CreJs.CreanvasNodeClient.NodeJsElement(controller, identificationData, imageData, positionData);
+		var element = new CreJs.CreanvasNodeClient.NodeJsElement(controller, elementTemplate);
 		
 		controller.elements.push(element);
 		
