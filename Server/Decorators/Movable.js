@@ -1,94 +1,97 @@
-var applyTo = function(element, movableData)
-{
-	var controller = element.controller;
-	var isBlocked =  movableData["isBlocked"];
-	var alwaysMoving = movableData["alwaysMoving"];
+var moving = require("./Moving");
 
-	element.omega = element.omega || 0;
+var MovableElement = function(parent, movableData) {
+	this.parent = parent;
+	this.isBlocked =  movableData.isBlocked;
+	this.alwaysMoving = movableData.alwaysMoving;
+	this.suspendMoving = false;
+};
+
+MovableElement.prototype.startMoving = function () {
+	console.log('startMoving: ' + this.parent.id  + ' from (' + this.parent.x +',' + this.parent.y +') ');
+	this.isMoving = true;
+	this.originalZ = this.parent.position.z;
+	this.parent.position.z = this.parent.position.z + 100;	
+};
+
+MovableElement.prototype.stopMoving = function(eventData) {
+	if (this.alwaysMoving)
+		return;
 	
-	element.isMovable = true;
-//	element.isMoving = alwaysMoving;
-	element.suspendMoving = false;
+	if (this.isBlocked && this.isBlocked(this.parent, eventData.originSocketId)) 
+		return;
+
+	this.isMoving = false;
+	this.lastMoved = null;
+	this.parent.position.z = this.originalZ;
+	this.parent.touchIdentifier = null;
+
+	return false;
+};
+
+MovableElement.prototype.onPointerDown = function(eventData) {
+	if (this.isBlocked && this.isBlocked(this.parent, eventData.originSocketId)) 
+		return;
+
+	this.startMoving();
+	this.suspendMoving = false;
+	this.lastMoved = this.parent.controller.getTime();
+
+	if (eventData.identifierElement) {
+		eventData.identifierElement.touchIdentifier = null;
+	}
 	
-	element.startMoving = function()
-	{
-		console.log('startMoving: ' + this.id  + ' from (' + this.elementX +',' + this.elementY +') ');
-		this.isMoving = true;
-		this.originalZ = this.elementZ;
-		this.update('elementZ', this.elementZ + 100);
-	};
+	if (this.parent.droppable && this.parent.droppable.dropZone) {
+		this.parent.droppable.dropZone.drag(this.parent);
+	}
+	
+	this.parent.touchIdentifier = eventData.touchIdentifier;
+	
+	return false;
+};
+
+MovableElement.prototype.onPointerMove = function(eventData) {
+	if (this.isBlocked && this.isBlocked(this.parent, eventData.originSocketId)) 
+		return;
+
+	if (!this.isMoving) {
+		return true;
+	}
+				
+	if (this.suspendMoving) {
+		if (this.parent.isPointInElementEdges(eventData.x, eventData.y)) {
+			this.suspendMoving = false;
+		}
+		else {
+			return false;
+		}
+	}
+
+	this.parent.moving.targetElementX = eventData.x;  
+	this.parent.moving.targetElementY = eventData.y;
+
+	return false;
+};
+
+var applyTo = function(element, movableData) {
+	if (!element.moving)
+		moving.applyTo(element, {});
+
+	element.movable = new MovableElement(element, movableData);
+	
+	var controller = element.controller;
 	
 	element.addEventListener(
 		'pointerDown',
-		function(eventData)
-		{
-			if (isBlocked && isBlocked(element, eventData.originSocketId)) 
-				return;
-
-			element.startMoving();
-
-			element.suspendMoving = false;
-			element.lastMoved = element.controller.getTime();
-
-			if (eventData.identifierElement)
-				eventData.identifierElement.touchIdentifier = null;
-			
-			if (element.dropZone)
-			{
-				element.dropZone.drag(element);
-			}
-			
-			element.touchIdentifier = eventData.touchIdentifier;
-			return false;
-		});
+		function(eventData) { return element.movable.onPointerDown(eventData); });
 
 	element.addEventListener(
-		'pointerMove',
-		function(eventData)
-		{
-			if (isBlocked && isBlocked(element, eventData.originSocketId)) 
-				return;
-
-			if (!element.isMoving)
-			{
-				return true;
-			};
-						
-			if (element.suspendMoving)
-			{
-				if (element.isPointInElementEdges(eventData.x, eventData.y))
-				{element.suspendMoving = false;}
-				else
-					{return false;}
-			}
-
-			element.movingElement.targetElementX = eventData.x;  
-			element.movingElement.targetElementY = eventData.y;
-
-			return false;
-		});
+		'pointerMove', 
+		function(eventData) { return element.movable.onPointerMove(eventData); });
 	
-	var stopMoving = function(eventData)
-	{
-		if (alwaysMoving)
-			return;
-		
-		if (isBlocked && isBlocked(element, eventData.originSocketId)) 
-			return;
-
-		element.isMoving = false;
-		element.lastMoved = null;
-		element.update('elementZ', element.originalZ);
-		element.touchIdentifier = null;
-
-//		console.log('StopMoving' + element.id  + ' at (' + element.elementX +',' + element.elementY +',' + element.elementZ +') ' + element.movingSpeed.x);
-		return false;
-	};
-
 	element.addEventListener(
-		'pointerUp',
-		stopMoving
-		);
+		'pointerUp', 
+		function(eventData) { return element.movable.stopMoving(eventData); });
 };
 
 exports.applyTo = applyTo;

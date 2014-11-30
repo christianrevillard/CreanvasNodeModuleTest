@@ -1,147 +1,118 @@
 var decorators = require("./Decorators");
+var vector = require('./Vector');
 
-var Element = function(controller, identificationData, imageData, positionData) {
-
+var Element = function(controller, elementTemplate) {
+	
 	var element = this;
 
 	element.id = controller.elements.length + 1; 
 
 	this.controller = controller;
-	this.cachedValues = [];
-	this.clonerData = [];
-	// this.elementEvents = this.elementEvents || new
-	// CreJs.Creevents.EventContainer();
 
-	setIdentification(element, identificationData[1]);
-	setImage(element, imageData[1]);
-	setPosition(element, positionData[1]);
-
-	this.clonerData.push(identificationData);
-	this.clonerData.push(imageData);
-	this.clonerData.push(positionData);
+	setIdentification(element, elementTemplate);
+	setImage(element, elementTemplate);
+	setPosition(element, elementTemplate);
 
 	this.events = [];
-	// element.controller.elementEvents.getEvent('deactivate').addListener(function(e)
-	// { element.deactivate(); });
-};
-
-var setIdentification = function(element, identificationData) {
-	element.elementName = identificationData;
-};
-
-var setImage = function(element, imageData) {
-	var width = imageData["width"];
-	var height = imageData["height"];
-
-	element.top = imageData["top"] == 0 ? 0 : imageData["top"] || (-height / 2);
-	element.left = imageData["left"] == 0 ? 0 : imageData["left"]
-			|| (-width / 2);
-	element.bottom = imageData["bottom"] == 0 ? 0 : imageData["bottom"]
-			|| (element.top + height);
-	element.right = imageData["right"] == 0 ? 0 : imageData["right"]
-			|| (element.left + width);
-	element.elementWidth = width || (element.right - element.left);
-	element.elementHeight = height || (element.bottom - element.top);
-
-	// scaling decorator ?? => should be
-	element.elementScaleX = imageData["scaleX"] || 1;
-	element.elementScaleY = imageData["scaleY"] || 1;
-	element.typeName = imageData["typeName"];
 	
-	if (imageData["isPointInElementEdges"])
-		element.isPointInElementEdges = imageData["isPointInElementEdges"];
-
-	if (imageData["getEdges"])
-		element.getEdges = imageData["getEdges"];
-
-	element.experimentalIsPointInElement = imageData["experimentalIsPointInElement"];
-
-	element.experimentalGetEdgePoint = imageData["experimentalGetEdgePoint"];
+	var keys = Object.keys(elementTemplate);
+	for (var decorator in keys) {
+		//console.log ('checking ' + keys[decorator]);
+		if (decorators[keys[decorator]]) {			
+			//console.log ('applying ' + keys[decorator]);
+			element.applyElementDecorator(keys[decorator], elementTemplate[keys[decorator]]);
+		}
+	}
 };
 
-var setPosition = function(element, position) {
+var setIdentification = function(element, elementTemplate) {
+	element.name = elementTemplate.name;
+};
+
+var setImage = function(element, elementTemplate) {
+	
+	element.typeName = elementTemplate.typeName;
+
+	var width = elementTemplate.box.width;
+	var height = elementTemplate.box.height;
+
+	element.box = {};
+	// elementTemplate.box - mandatory
+	element.box.top = elementTemplate.box.top == 0 ? 0 : elementTemplate.box.top || (-height / 2);
+	element.box.left = elementTemplate.box.left == 0 ? 0 : elementTemplate.box.left || (-width / 2);
+	element.box.bottom = elementTemplate.box.bottom == 0 ? 0 : elementTemplate.box.bottom || (element.box.top + height);
+	element.box.right = elementTemplate.box.right == 0 ? 0 : elementTemplate.box.right || (element.box.left + width);
+	element.box.width = width || (element.box.right - element.box.left);
+	element.box.height = height || (element.box.bottom - element.box.top);
+	
+	console.log ('w: ' + 	element.box.width + ', h: ' + 	element.box.height);
+	
+	if (elementTemplate["isPointInElementEdges"])
+		element.isPointInElementEdges = elementTemplate["isPointInElementEdges"];
+
+	if (elementTemplate["getEdges"])
+		element.getEdges = elementTemplate["getEdges"];
+
+	element.experimentalIsPointInElement = elementTemplate["experimentalIsPointInElement"];
+
+	element.experimentalGetEdgePoint = elementTemplate["experimentalGetEdgePoint"];
+};
+
+var setPosition = function(element, elementTemplate) {
 	// position prop
-	element.elementX = position["x"] || 0;
-	element.elementY = position["y"] || 0;
-	element.elementZ = position["z"] || 0;
-	element.elementAngle = position["angle"] || 0;
-};
-
-Element.prototype.update = function(field, value) {
-	this.toUpdate = this.toUpdate || {
-		id : this.id
+	element.position = {
+		x: elementTemplate.position ? (elementTemplate.position.x || 0) : 0,
+		y: elementTemplate.position ? (elementTemplate.position.y || 0) : 0,
+		z: elementTemplate.position ? (elementTemplate.position.z || 0) : 0,
+		angle: elementTemplate.position ? (elementTemplate.position.angle || 0) : 0};
+	
+	element.scale = {
+		x: elementTemplate.position ? (elementTemplate.position.scale ? (elementTemplate.position.scale.x || 1) : 1 ): 1,
+		y: elementTemplate.position ? (elementTemplate.position.scale ? (elementTemplate.position.scale.y || 1) : 1 ): 1
 	};
-	this.toUpdate[field] = this[field] = value;
 };
 
-Element.prototype.fullUpdate = function() {
-	this.toUpdate = this.toUpdate || { id : this.id };
-	this.toUpdate.elementX = this.elementX;
-	this.toUpdate.elementY = this.elementY;
-	this.toUpdate.elementZ = this.elementZ;
-	this.toUpdate.elementScaleX = this.elementScaleX;
-	this.toUpdate.elementScaleY = this.elementScaleY;
-	this.toUpdate.elementAngle = this.elementAngle;
-	this.toUpdate.typeName = this.typeName;
+Element.prototype.checkForUpdate = function(updatedData, field, value){
+	if (this.previousClientData[field] != value) 
+	{	
+		updatedData = updatedData || {id:this.id};
+		updatedData[field] = this.previousClientData[field] = value;
+	}
+	return updatedData;
 };
 
-Element.prototype.applyElementDecorator = function(decoratorType,
-		decoratorSettings) {
-	// console.log("applyElementDecorator: " + decoratorType);
+Element.prototype.getUpdatedClientData = function(){
+
+	this.previousClientData = this.previousClientData || {};
+	
+	var updatedData = null;
+	updatedData = this.checkForUpdate(updatedData, 'x', this.position.x);
+	updatedData = this.checkForUpdate(updatedData, 'y', this.position.y);
+	updatedData = this.checkForUpdate(updatedData, 'z', this.position.z);
+	updatedData = this.checkForUpdate(updatedData, 'angle', this.position.angle);
+	updatedData = this.checkForUpdate(updatedData, 'scaleX', this.scale.x);
+	updatedData = this.checkForUpdate(updatedData, 'scaleY', this.scale.y);
+	updatedData = this.checkForUpdate(updatedData, 'typeName', this.typeName);
+	return updatedData;
+};
+
+Element.prototype.applyElementDecorator = function(decoratorType, decoratorSettings) {
 
 	var decorator = decorators[decoratorType];
 
 	if (decorator) {
-		this.clonerData.push([ decoratorType, decoratorSettings ]);
 		decorator.applyTo(this, decoratorSettings);
 	} else {
 		console.log("applyElementDecorator: Not found: " + decoratorType);
 	}
 };
 
-/*
- * creanvas.Element.prototype.getCacheableValue = function(cacheKey, currentKey,
- * getData) { if (this.cachedValues[cacheKey] && this.cachedValues[cacheKey].key ==
- * currentKey) { return this.cachedValues[cacheKey].value; } var newValue =
- * getData.call(this); this.cachedValues[cacheKey] = {key:currentKey,
- * value:newValue}; return newValue; };
- */
+Element.prototype.cloneElement = function() {
 
-// unpractical syntax... ignore is unnatural here TODO
-Element.prototype.cloneElement = function(ignoreDecorators) {
-	// console.log("cloneElement : start cloning");
+	var clone = this.controller.addElement(this);
 
-	var elementsToApply = ignoreDecorators ? this.clonerData
-			.filter(function(d) {
-				return ignoreDecorators.every(function(toIgnore) {
-					return toIgnore != d[0];
-				});
-			}) : this.clonerData;
-
-	// console.log("cloneElement: apply " + elementsToApply.length + " stuff");
-
-	var clone = this.controller.addElement.apply(this.controller,
-			elementsToApply);
-	clone.update('elementZ', this.elementZ + 1);
+	clone.position.z = this.position.z + 1;
 	return clone;
-};
-
-/*
- * creanvas.Element.prototype.canHandleEvent = function(eventId) { // click,
- * pointerDown, always stopped by top element, even if not handled return
- * eventId == 'click' || eventId == 'pointerDown' ||
- * this.elementEvents.hasEvent(eventId); };
- */
-
-Element.prototype.applyElementDecorators = function() {
-	var element = this;
-
-	var newDecorators = [].slice.apply(arguments);
-
-	newDecorators.forEach(function(decoratorArgument) {
-		element.applyElementDecorator(decoratorArgument[0],
-				decoratorArgument[1]);
-	});
 };
 
 Element.prototype.triggerEvent = function(eventData) {
@@ -175,7 +146,6 @@ Element.prototype.removeEventListener = function(id) {
 		e.action = null;
 	});
 };
-
 
 Element.prototype.isPointInElementEdges = function(x, y) {
 
@@ -215,15 +185,15 @@ Element.prototype.isPointInElementEdges = function(x, y) {
 	return intersections.length % 2 == 1;
 };
 
-Element.prototype.getRealXYFromElementXY  = function(elementXY)
+Element.prototype.getRealXYFromElementXY  = function(xY)
 {	
 	var element= this;
 	
 	var xy = { 
-		x: (element.elementX + element.elementScaleX * (elementXY.x*Math.cos(element.elementAngle) - elementXY.y*Math.sin(element.elementAngle))),
-		y: (element.elementY + element.elementScaleY * (elementXY.x*Math.sin(element.elementAngle) + elementXY.y*Math.cos(element.elementAngle)))};
+		x: (element.position.x + element.scale.x * (xY.x*Math.cos(element.position.angle) - xY.y*Math.sin(element.position.angle))),
+		y: (element.position.y + element.scale.y * (xY.x*Math.sin(element.position.angle) + xY.y*Math.cos(element.position.angle)))};
 	
-	//console.log ("("+ elementXY.x  +","+ elementXY.y+") => ("+ xy.x  +","+ xy.y+")");
+	//console.log ("("+ xY.x  +","+ xY.y+") => ("+ xy.x  +","+ xy.y+")");
 	return xy;
 };
 
@@ -244,7 +214,7 @@ Element.prototype.getEdges = function()
 
 Element.prototype.getDistance = function(x,y)
 {
-	return Math.sqrt((this.elementX-x)*(this.elementX-x) + (this.elementY-y)*(this.elementY-y));
+	return Math.sqrt((this.position.x-x)*(this.position.x-x) + (this.position.y-y)*(this.position.y-y));
 };
 
 Element.prototype.getRealCornerEdges  = function()
@@ -258,11 +228,11 @@ Element.prototype.getRealEdges  = function()
 
 	if (!this.realEdges 
 			|| this.realEdges.edges.length == 0
-			|| this.realEdges.info.x!=this.elementX 
-			|| this.realEdges.info.y!=this.elementY
-			|| this.realEdges.info.angle!=this.elementAngle
-			|| this.realEdges.info.scaleX!=this.elementScaleX
-			|| this.realEdges.info.scaleY!=this.elementScaleY)
+			|| this.realEdges.info.x!=this.position.x 
+			|| this.realEdges.info.y!=this.position.y
+			|| this.realEdges.info.angle!=this.position.angle
+			|| this.realEdges.info.scaleX!=this.scale.x
+			|| this.realEdges.info.scaleY!=this.scale.y)
 	{
 		var realEdges = this.getEdges().map(function(e){ 
 			var xy = element.getRealXYFromElementXY(e);
@@ -273,11 +243,11 @@ Element.prototype.getRealEdges  = function()
 			{	
 				info:
 				{
-					x: this.elementX,
-					y: this.elementY,
-					angle: this.elementAngle,
-					scaleX: this.elementScaleX,
-					scaleY: this.elementScaleY
+					x: this.position.x,
+					y: this.position.y,
+					angle: this.position.angle,
+					scaleX: this.scale.x,
+					scaleY: this.scale.y
 				},
 				edges: realEdges,
 				box:

@@ -1,17 +1,21 @@
-var applyTo = function(element, clickableData) {
+var ClickableElement = function(clickableData)
+{	
+	this.onClick = clickableData.onClick;	
+};
 
-	var controller = element.controller;
-		
+var applyTo = function(element, clickableData) {
+	
 	console.log("clickable.applyTo: " + element.id);				
-					
+
+	element.clickable = new ClickableElement(clickableData);						
+	
 	element.addEventListener(
 		'click',
 		function(eventData)
 		{
-			console.log('Clicked ' + element.id  + ' at (' + element.elementX +',' + element.elementY +')');
-
+			element.clickable.onClick(eventData);	
 			return true;
-		});
+		});	
 };
 
 exports.applyTo = applyTo;

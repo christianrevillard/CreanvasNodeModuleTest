@@ -1,8 +1,12 @@
+var DroppableElement = function(droppableData)
+{
+	this.dropZone = droppableData.dropZone;
+	this.onDrop = droppableData.onDrop;
+}
+
 var applyTo = function(element, droppableData)
 {
-	element.isDroppable = true;
-	element.dropZone = droppableData["dropZone"];
-	element.ondrop = droppableData["ondrop"];
+	element.droppable = new DroppableElement(droppableData);
 }
 
 exports.applyTo = applyTo;

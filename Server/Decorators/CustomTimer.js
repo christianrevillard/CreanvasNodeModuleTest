@@ -1,13 +1,13 @@
 var applyTo = function(element, customTimerData)
 {	
-	console.log('applying customTimer');
-	
+	console.log('applying customTimer');	
+
 	element.controller.setInterval(
 		function()
 		{
-			customTimerData["action"].call(element);					
+			customTimerData.action.call(element)
 		},
-		customTimerData["time"]);
-}
+		customTimerData.time);
+};
 
 exports.applyTo = applyTo;

@@ -45,10 +45,10 @@ var CollisionSolver = function(controller) {
 		
 		colVectors = collisionPoint.vectors;
 			
-		centerCollisionElement = new vector.Vector(collisionPoint.x-element.elementX, collisionPoint.y-element.elementY);								
+		centerCollisionElement = new vector.Vector(collisionPoint.x-element.position.x, collisionPoint.y-element.position.y);								
 		l1 = vector.vectorProduct(centerCollisionElement, colVectors.v).z;		
 
-		centerCollisionOther = new vector.Vector(collisionPoint.x-other.elementX, collisionPoint.y-other.elementY);								
+		centerCollisionOther = new vector.Vector(collisionPoint.x-other.position.x, collisionPoint.y-other.position.y);								
 		l2= vector.vectorProduct(centerCollisionOther, colVectors.v).z;		
 
 		var elementRot = vector.vectorProduct(
@@ -59,30 +59,33 @@ var CollisionSolver = function(controller) {
 				centerCollisionOther,
 				colVectors.v);	
 
-		speedElement = element.movingElement ? new vector.Vector(
-			element.movingElement.movingSpeed?element.movingElement.movingSpeed.x:0, 
-			element.movingElement.movingSpeed?element.movingElement.movingSpeed.y:0)
+		speedElement = element.moving ? new vector.Vector(
+			element.moving.speed?element.moving.speed.x:0, 
+			element.moving.speed?element.moving.speed.y:0)
 		: new vector.Vector(0,0);
 		
-		speedOther = other.movingElement ? new vector.Vector(
-			other.movingElement.movingSpeed?other.movingElement.movingSpeed.x:0, 
-			other.movingElement.movingSpeed?other.movingElement.movingSpeed.y:0):
+		speedOther = other.moving ? new vector.Vector(
+			other.moving.speed?other.moving.speed.x:0, 
+			other.moving.speed?other.moving.speed.y:0):
 				new vector.Vector(0,0);
 
-		if (element.movingElement && element.movingElement.elementScaleSpeed)
+		if (element.moving && element.moving.scaleSpeed)
 		{
-			speedElement.x += centerCollisionElement.x*element.movingElement.elementScaleSpeed.x;
-			speedElement.y += centerCollisionElement.y*element.movingElement.elementScaleSpeed.y;
+			speedElement.x += centerCollisionElement.x*element.moving.scaleSpeed.x;
+			speedElement.y += centerCollisionElement.y*element.moving.scaleSpeed.y;
 		};
 
-		if (other.movingElement && other.movingElement.elementScaleSpeed)
+		if (other.moving && other.moving.scaleSpeed)
 		{
-			speedOther.x += centerCollisionOther.x*other.movingElement.elementScaleSpeed.x;
-			speedOther.y += centerCollisionOther.y*other.movingElement.elementScaleSpeed.y;
+			speedOther.x += centerCollisionOther.x*other.moving.scaleSpeed.x;
+			speedOther.y += centerCollisionOther.y*other.moving.scaleSpeed.y;
 		};
 
 		localSpeedElement = speedElement.getCoordinates(colVectors);
 		localSpeedOther = speedOther.getCoordinates(colVectors);
+
+		console.log('localSpeedOther.v: ' + localSpeedOther.v);
+		console.log('localSpeedElement.v: ' + localSpeedElement.v);
 
 		var elementMass = element.fixedPoint ? Infinity:element.mass;
 		var otherMass = other.fixedPoint ? Infinity:other.mass;
@@ -90,29 +93,21 @@ var CollisionSolver = function(controller) {
 		var otherMOI = other.fixed ? Infinity:other.getMomentOfInertia();
 
 		var F = element.collisionCoefficient * other.collisionCoefficient * 2 *
-			(localSpeedOther.v - localSpeedElement.v + (other.omega || 0) * otherRot.z - (element.omega || 0) * elementRot.z)
+			(localSpeedOther.v - localSpeedElement.v 
+					+ other.moving.speed.angle * otherRot.z 
+					- element.moving.speed.angle * elementRot.z)
 			/( 1/otherMass + 1/elementMass + otherRot.z*otherRot.z/otherMOI + elementRot.z*elementRot.z/elementMOI );
 
-		// should not be needed... do it better
-/*		if (!element.movingSpeed)
-		{
-			element.movingSpeed = {x:0,y:0};
-		}*/
+		console.log('F: ' + F);
 
-		// require moving for collidable 
-		element.movingElement.movingSpeed.x += F/elementMass*colVectors.v.x;
-		element.movingElement.movingSpeed.y += F/elementMass*colVectors.v.y;
+		element.moving.speed.x += F/elementMass*colVectors.v.x;
+		element.moving.speed.y += F/elementMass*colVectors.v.y;
 		
-/*		if (!other.movingSpeed)
-		{
-			other.movingSpeed = {x:0,y:0};
-		}*/
-
-		other.movingElement.movingSpeed.x -= F/otherMass*colVectors.v.x;
-		other.movingElement.movingSpeed.y -= F/otherMass*colVectors.v.y;
+		other.moving.speed.x -= F/otherMass*colVectors.v.x;
+		other.moving.speed.y -= F/otherMass*colVectors.v.y;
 		
-		element.movingElement.omega += F * l1 / elementMOI;
-		other.movingElement.omega -= F * l2 / otherMOI;		
+		element.moving.speed.angle += F * l1 / elementMOI;
+		other.moving.speed.angle -= F * l2 / otherMOI;				
 	};
 
 	var hasCollided = function(element, otherElement)
@@ -120,7 +115,7 @@ var CollisionSolver = function(controller) {
 		var elementEdges = element.getRealEdges();
 		var otherEdges = otherElement.getRealEdges();
 		
-		if(elementEdges.box.radius + otherEdges.box.radius < element.getDistance(otherElement.elementX, otherElement.elementY))
+		if(elementEdges.box.radius + otherEdges.box.radius < element.getDistance(otherElement.x, otherElement.y))
 			return false;
 			
 		if (elementEdges.box.right < otherEdges.box.left)
@@ -197,15 +192,9 @@ var CollisionSolver = function(controller) {
 			}
 			return {x:(s.A.x+s.B.x)/2,y:(s.A.y+s.B.y)/2};
 			});
-		console.log("Element: " + JSON.stringify({x:element.elementX.toFixed(2), y:element.elementY.toFixed(2)}));
-		console.log("OtherEl: " + JSON.stringify({x:otherElement.elementX.toFixed(2), y:otherElement.elementY.toFixed(2)}));
-		console.log("Collisi: " + JSON.stringify(collisionPoints));
-		console.log("ElBefore: " + JSON.stringify({vx:element.movingSpeed?element.movingSpeed.x.toFixed(2):0, vy:element.movingSpeed?element.movingSpeed.y.toFixed(2):0, o:element.omega?element.omega.toFixed(2):0}));		
-		console.log("OeBefore: " + JSON.stringify({vx:otherElement.movingSpeed?otherElement.movingSpeed.x.toFixed(2):0, vy:otherElement.movingSpeed?otherElement.movingSpeed.y.toFixed(2):0, o:otherElement.omega?otherElement.omega.toFixed(2):0}));
-		updateAfterCollision(element, otherElement, collisionPoints);
-		console.log("ElAfter: " + JSON.stringify({vx:element.movingSpeed?element.movingSpeed.x.toFixed(2):0, vy:element.movingSpeed?element.movingSpeed.y.toFixed(2):0, o:element.omega?element.omega.toFixed(2):0}));		
-		console.log("OeAfter: " + JSON.stringify({vx:otherElement.movingSpeed?otherElement.movingSpeed.x.toFixed(2):0, vy:otherElement.movingSpeed?otherElement.movingSpeed.y.toFixed(2):0, o:otherElement.omega?otherElement.omega.toFixed(2):0}));
 				
+		updateAfterCollision(element, otherElement, collisionPoints);
+		
 		return true;
 	};
 
@@ -214,7 +203,7 @@ var CollisionSolver = function(controller) {
 		return element
 			.controller
 			.elements
-			.filter(function(e){return e.id != element.id && e.isSolid && !e.isDuplicable;})
+			.filter(function(e){return e.id != element.id && e.isSolid && !e.duplicable;})
 			.every(
 			function(other)
 			{				

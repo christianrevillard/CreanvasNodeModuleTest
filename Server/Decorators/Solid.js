@@ -13,7 +13,7 @@ var applyTo = function(element, solidData) {
 	
 	controller.collisionSolver = controller.collisionSolver || new collisionSolver.CollisionSolver(controller);
 	
-	if (!element.movingElement)
+	if (!element.moving)
 		moving.applyTo(element, {});
 
 	// TODO: can other type than Solid implement a Premove: change stuff here...
@@ -30,7 +30,9 @@ var applyTo = function(element, solidData) {
 	
 	element.getMomentOfInertia = function()
 	{				
-		return element.mass / 12 * (element.elementWidth*element.elementScaleX * element.elementWidth*element.elementScaleX + element.elementHeight*element.elementScaleY * element.elementHeight*element.elementScaleY); // square...};
+		return element.mass / 12 * 
+		(element.box.width*element.scale.x * element.box.width*element.scale.x + 
+		element.box.height*element.scale.y * element.box.height*element.scale.y); // square...};
 	};
 };
 

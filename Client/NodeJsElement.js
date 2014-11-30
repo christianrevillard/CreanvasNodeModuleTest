@@ -23,11 +23,11 @@
 
 			var element = this;
 
-			element.controller.context.translate(element.elementX,
-					element.elementY);
-			element.controller.context.rotate(element.elementAngle || 0);
-			element.controller.context.scale(element.elementScaleX || 1,
-					element.elementScaleY || 1);
+			element.controller.context.translate(element.x,
+					element.y);
+			element.controller.context.rotate(element.angle || 0);
+			element.controller.context.scale(element.scale.x || 1,
+					element.scale.y || 1);
 
 			controller.context.beginPath();
 			element.elementType.draw(controller.context);
@@ -50,31 +50,32 @@
 				controller.context.stroke();
 			}
 			*/
-			element.controller.context.scale(1/(element.elementScaleX || 1), 1/(element.elementScaleY || 1));
+			element.controller.context.scale(1/(element.scale.x || 1), 1/(element.scale.y || 1));
 
-			element.controller.context.rotate(- (element.elementAngle || 0));
+			element.controller.context.rotate(- (element.angle || 0));
 
-			element.controller.context.translate(-element.elementX, - element.elementY);			
+			element.controller.context.translate(-element.x, - element.y);			
 
 		};
 	};
 
 	var setIdentification = function(element, identificationData) {
-		element.elementName = identificationData;
+		element.name = identificationData;
 	};
 
 	var setImage = function(element, imageData) {
 		// scaling decorator ?? => should be
-		element.elementScaleX = imageData["scaleX"] || 1;
-		element.elementScaleY = imageData["scaleY"] || 1;
+		element.scale = {
+			x: imageData["scaleX"] || 1,
+			y: imageData["scaleY"] || 1};
 		element.elementType = imageData["elementType"];
 	};
 
 	var setPosition = function(element, position) {
 		// position prop
-		element.elementX = position["x"] || 0;
-		element.elementY = position["y"] || 0;
-		element.elementZ = position["z"] || 0;
-		element.elementAngle = position["angle"] || 0;
+		element.x = position["x"] || 0;
+		element.y = position["y"] || 0;
+		element.z = position["z"] || 0;
+		element.angle = position["angle"] || 0;
 	};	
 }());

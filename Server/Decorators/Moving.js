@@ -1,88 +1,99 @@
-var vector = require('../Vector');
-
 var applyTo = function(element, elementMoving)
 {	
 	console.log('Applying moving');	
-	element.movingElement = new MovingElement(element, elementMoving);		
+	element.moving = new MovingElement(element, elementMoving);		
 }		
 
 var MovingElement = function(parent, elementMoving)
 {	
-	var element = this; // rewrite...
-	element.parent = parent;
-	element.movingSpeed = new vector.Vector( elementMoving.vx || 0, elementMoving.vy || 0);
-	element.movingAcceleration = new vector.Vector( elementMoving.ax || 0,  elementMoving.ay || 0);
-	element.omega = elementMoving.rotationSpeed || 0;
+	var moving = this;
 	
-	element.movingLimits = {
-		vMax: elementMoving.vMax || Infinity,
-		xMin: elementMoving.xMin || -Infinity,
-		yMin: elementMoving.yMin || -Infinity,
-		xMax: elementMoving.xMax || Infinity,
-		yMax: elementMoving.yMax || Infinity
+	moving.parent = parent;
+	
+	moving.speed = {
+		x: elementMoving.speed ? (elementMoving.speed.x || 0) : 0, 
+		y: elementMoving.speed ? (elementMoving.speed.y || 0) : 0, 
+		angle: elementMoving.speed ? (elementMoving.speed.angle || 0) : 0
 	};
 	
-	element.lastUpdated = element.parent.controller.getTime();
+	moving.acceleration = { 
+		x: elementMoving.acceleration ? (elementMoving.acceleration.x || 0) : 0, 
+		y: elementMoving.acceleration ? (elementMoving.acceleration.y || 0) : 0
+	};
+
+	moving.scaleSpeed = { x: 0, y: 0 };
+
+	moving.movingLimits = {
+		vMax: elementMoving.movingLimits? (elementMoving.vMax || Infinity) : Infinity,
+		xMin: elementMoving.movingLimits? (elementMoving.xMin || -Infinity) : -Infinity,
+		yMin: elementMoving.movingLimits? (elementMoving.yMin || -Infinity) : -Infinity,
+		xMax: elementMoving.movingLimits? (elementMoving.xMax || Infinity) : Infinity,
+		yMax: elementMoving.movingLimits? (elementMoving.yMax || Infinity) : Infinity
+	};
+	
+	moving.lastUpdated = moving.parent.controller.getTime();
 	
 	parent.controller.setInterval(
-		function(){ element.move() },
+		function(){ moving.move() },
 		40);
 };
 
 MovingElement.prototype.move = function()
 {
 	var rollbackData;
-	var element = this;
+	var moving = this;
 
-	var currentTime = element.parent.controller.getTime();
-	var dt = currentTime - element.lastUpdated;
+	var currentTime = moving.parent.controller.getTime();
+	var dt = currentTime - moving.lastUpdated;
 
 	if (dt < 0.001)
 		return;
 
-	element.lastUpdated = currentTime;
+	moving.lastUpdated = currentTime;
 	
-	if (element.targetElementX !== undefined && element.targetElementY !== undefined )
+	if (moving.targetElementX !== undefined && moving.targetElementY !== undefined )
 	{
 		//overriding speed until we get there.
-		if (!element.originalSpeed)
-			element.originalSpeed = element.movingSpeed
+		if (!moving.originalSpeed)
+			moving.originalSpeed = moving.speed
 	
-			element.movingSpeed =  new vector.Vector( 
-					(element.targetElementX - element.parent.elementX)/dt,
-					(element.targetElementY - element.parent.elementY)/dt);
+			moving.speed =  {
+				x: (moving.targetElementX - moving.parent.position.x)/dt,
+				y: (moving.targetElementY - moving.parent.position.y)/dt,
+				angle: 0
+			};
 
-		var v = Math.sqrt(element.movingSpeed.x*element.movingSpeed.x + element.movingSpeed.y*element.movingSpeed.y);
-		if (v > element.movingLimits.vMax)
+		var v = Math.sqrt(moving.speed.x*moving.speed.x + moving.speed.y*moving.speed.y);
+		if (v > moving.movingLimits.vMax)
 		{
-			element.movingSpeed.x *= element.movingLimits.vMax / v;
-			element.movingSpeed.y *= element.movingLimits.vMax / v;
+			moving.speed.x *= moving.movingLimits.vMax / v;
+			moving.speed.y *= moving.movingLimits.vMax / v;
 		}
 	}
 	else
 	{
-		element.movingSpeed.x += element.movingAcceleration.x * dt;
-		element.movingSpeed.y += element.movingAcceleration.y * dt;			
+		moving.speed.x += moving.acceleration.x * dt;
+		moving.speed.y += moving.acceleration.y * dt;			
 	}
 	
 	
 
-	if (element.movingSpeed.x == 0 &&
-			element.movingSpeed.y == 0 &&
-			element.omega == 0 &&
-			(!element.elementScaleSpeed ||(
-			element.elementScaleSpeed.x == 0 && element.elementScaleSpeed.y==0						
+	if (moving.speed.x == 0 &&
+			moving.speed.y == 0 &&
+			moving.speed.angle == 0 &&
+			(!moving.scaleSpeed ||(
+					moving.scaleSpeed.x == 0 && moving.scaleSpeed.y==0						
 			)))
 	{
 		return;
 	}
 	
 
-	dElementX = element.movingSpeed.x * dt; 
-	dElementY = element.movingSpeed.y * dt; 
-	dElementAngle = element.omega * dt;
-	dElementScaleX = element.elementScaleSpeed?element.elementScaleSpeed.x * dt : 0;
-	dElementScaleY = element.elementScaleSpeed?element.elementScaleSpeed.y * dt : 0;
+	dElementX = moving.speed.x * dt; 
+	dElementY = moving.speed.y * dt; 
+	dElementAngle = moving.speed.angle * dt;
+	dElementScaleX = moving.scaleSpeed?moving.scaleSpeed.x * dt : 0;
+	dElementScaleY = moving.scaleSpeed?moving.scaleSpeed.y * dt : 0;
 
 	
 	// check the rules for angle and scale... must correspond to about a point
@@ -98,68 +109,57 @@ MovingElement.prototype.move = function()
 	
 	for (var inc=0; inc<discret; inc++)
 	{			
-		element.rollbackData = 
+		moving.rollbackData = 
 		{
-				elementX: element.parent.elementX, 
-				elementY:element.parent.elementY, 
-				elementAngle:element.parent.elementAngle,
-				elementScaleX:element.parent.elementScaleX,
-				elementScaleY:element.parent.elementScaleY
+				x: moving.parent.position.x, 
+				y: moving.parent.position.y, 
+				angle: moving.parent.position.angle,
+				scaleX: moving.parent.scale.x,
+				scaleY: moving.parent.scale.y
 		};
 
-		element.parent.elementX += dElementX/discret; 
-		element.parent.elementY += dElementY/discret; 
-		element.parent.elementAngle += dElementAngle/discret;
-		element.parent.elementScaleX += dElementScaleX/discret;
-		element.parent.elementScaleY += dElementScaleY/discret;
+		moving.parent.position.x += dElementX/discret; 
+		moving.parent.position.y += dElementY/discret; 
+		moving.parent.position.angle += dElementAngle/discret;
+		moving.parent.scale.x += dElementScaleX/discret;
+		moving.parent.scale.y += dElementScaleY/discret;
 
-		if (element.parent.preMove && !element.parent.preMove())
+		if (moving.parent.preMove && !moving.parent.preMove())
 		{
 //			console.log('Cannot move  '+ element.id);
-			element.parent.elementX = element.rollbackData.elementX; 
-			element.parent.elementY = element.rollbackData.elementY;
-			element.parent.elementAngle = element.rollbackData.elementAngle;
-			element.parent.elementScaleX = element.rollbackData.elementScaleX;
-			element.parent.elementScaleY = element.rollbackData.elementScaleY;
+			moving.parent.position.x = moving.rollbackData.x; 
+			moving.parent.position.y = moving.rollbackData.y;
+			moving.parent.position.angle = moving.rollbackData.angle;
+			moving.parent.scale.x = moving.rollbackData.scaleX;
+			moving.parent.scale.y = moving.rollbackData.scaleY;
 			return;
 		}
 
-		if ( element.parent.elementX>element.movingLimits.xMax || element.parent.elementX<element.movingLimits.xMin)
+		if ( moving.parent.position.x>moving.movingLimits.xMax || moving.parent.position.x<moving.movingLimits.xMin)
 		{
-			element.parent.elementX = element.rollbackData.elementX; 
+			moving.parent.position.x = moving.rollbackData.x; 
 		}
 
-		if (element.parent.elementY>element.movingLimits.yMax || element.parent.elementY<element.movingLimits.yMin) 				
+		if (moving.parent.position.y>moving.movingLimits.yMax || moving.parent.position.y<moving.movingLimits.yMin) 				
 		{
-			element.parent.elementY = element.rollbackData.elementY; 
+			moving.parent.position.y = moving.rollbackData.y; 
 		}
 		
-		if (element.targetElementX !== undefined)
+		if (moving.targetElementX !== undefined)
 		{
 			if ( 
-			(element.targetElementX-element.parent.elementX)*(element.targetElementX-element.parent.elementX)<1
-			&& (element.targetElementY-element.parent.elementY)*(element.targetElementY-element.parent.elementY) <1)
+			(moving.targetElementX-moving.parent.position.x)*(moving.targetElementX-moving.parent.position.x)<1
+			&& (moving.targetElementY-moving.parent.position.y)*(moving.targetElementY-moving.parent.position.y) <1)
 			{
-				element.targetElementX = element.targetElementY = undefined;
-				element.movingSpeed = element.oringalSpeed || new vector.Vector(0,0);
+				moving.targetElementX = moving.targetElementY = undefined;
+				moving.speed = moving.originalSpeed || { x:0, y:0, angle:0};
 			}
 		}
 
-		element.parent.update('elementX', element.parent.elementX);
-		element.parent.update('elementY', element.parent.elementY);				
-
-		var newAngle = element.parent.elementAngle;
-		while (newAngle > Math.PI)
-			newAngle-= 2* Math.PI
-		while (newAngle < -Math.PI)
-			newAngle+= 2* Math.PI
-		element.parent.update('elementAngle', newAngle );
-
-		if (element.parent.elementScaleSpeed)
-		{
-			element.parent.update('elementScaleX', element.parent.elementScaleX);	
-			element.parent.update('elementScaleY', element.parent.elementScaleY);	
-		}
+		var newAngle = moving.parent.position.angle;
+		while (newAngle > Math.PI) newAngle-= 2* Math.PI;
+		while (newAngle < -Math.PI) newAngle+= 2* Math.PI;
+		moving.parent.position.angle = newAngle;
 	}		
 };
 

@@ -1,49 +1,57 @@
+var DuplicableElement = function(element, duplicableData)
+{
+	this.parent = element; // can we do better than this ??
+	this.isBlocked = duplicableData.isBlocked;
+	this.generatorCount = duplicableData.generatorCount || Infinity;
+	this.applied = true;
+};
+
+DuplicableElement.prototype.makeCopy = function(e){
+
+	if (this.isBlocked && this.isBlocked(this.parent, e.originSocketId)) 
+		return;
+	
+	console.log('duplicable.makeCopy: GeneratorCount was: ' + this.generatorCount);
+
+	if (this.generatorCount<=0) 
+		return;
+
+	this.generatorCount--;
+
+	var copy = this.parent.cloneElement();
+	copy.name+= " (duplicate)";
+
+	copy.applyElementDecorator(
+		"movable",
+		{
+			isBlocked : this.isBlocked,
+		});
+	
+	copy.touchIdentifier =  e.touchIdentifier; 
+	copy.movable.startMoving();
+};
+
 var applyTo = function(element, duplicableData) {
 
+	if (duplicableData.applied)
+		return;
+	
+	console.log('Apply duplicable to ' + element.id);
+	
 	var controller = element.controller;
 	
-	element.isDuplicable = true;
-
-	var isBlocked =  duplicableData["isBlocked"];
-	var generatorCount = duplicableData["generatorCount"] || Infinity;
-	
-	console.log("duplicable.applyTo: generatorCount is " + generatorCount);				
-				
-	var makeCopy = function(e) {
-
-		if (isBlocked && isBlocked(element, e.originSocketId)) 
-			return;
-		
-		console.log('duplicable.makeCopy: GeneratorCount was: ' + generatorCount);
-
-		if (generatorCount<=0) 
-			return;
-
-		generatorCount--;
-
-
-		var copy = element.cloneElement(['duplicable']);
-		copy.elementName+= " (duplicate)";
-
-		copy.applyElementDecorator(
-			"movable",
-			{
-				isBlocked : isBlocked,
-			});
-		
-		copy.touchIdentifier =  e.touchIdentifier; 
-		copy.startMoving();
-	};
-		
+	element.duplicable = new DuplicableElement(element, duplicableData);					
 
 	element.addEventListener(
 		'pointerDown',
 		function(eventData)
 		{
-			console.log('Duplicating' + element.id  + ' at (' + element.elementX +',' + element.elementY +')');
-			makeCopy(eventData);			
+			console.log('Duplicating' + element.id  + ' at (' + element.x +',' + element.y +')');
+			element.duplicable.makeCopy(eventData);			
 			return false;
 		});	
+	
+	console.log('Applied duplicable to ' + element.id);
 };
 
 exports.applyTo = applyTo;

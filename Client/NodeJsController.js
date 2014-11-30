@@ -84,12 +84,12 @@
 					
 //					el.updated = updated;
 
-					el.elementX = updated["elementX"]===undefined?el.elementX:updated["elementX"];
-					el.elementY = updated["elementY"]===undefined?el.elementY:updated["elementY"];
-					el.elementZ = updated["elementZ"]===undefined?el.elementZ:updated["elementZ"];
-					el.elementScaleX = updated["elementScaleX"]===undefined?el.elementScaleX:updated["elementScaleX"];
-					el.elementScaleY = updated["elementScaleY"]===undefined?el.elementScaleY:updated["elementScaleY"];				
-					el.elementAngle= updated["elementAngle"]===undefined?el.elementAngle:updated["elementAngle"];
+					el.x = updated["x"]===undefined?el.x:updated["x"];
+					el.y = updated["y"]===undefined?el.y:updated["y"];
+					el.z = updated["z"]===undefined?el.z:updated["z"];
+					el.scale.x = updated["scaleX"]===undefined?el.scale.x:updated["scaleX"];
+					el.scale.y = updated["scaleY"]===undefined?el.scale.y:updated["scaleY"];				
+					el.angle= updated["angle"]===undefined?el.angle:updated["angle"];
 
 					if (updated['typeName'] && el.elementType.typeName != updated['typeName'])
 					{
@@ -98,12 +98,15 @@
 				}
 				else {
 					//inserts
-					if (DEBUG) controller.logMessage('Adding element ' + updated['typeName'] + ' in (' + updated["elementX"] + ',' + updated["elementY"] + ',' + updated["elementZ"] +')');
+					if (DEBUG) controller.logMessage('Adding element ' + updated['typeName'] + ' in (' + updated["x"] + ',' + updated["y"] + ',' + updated["z"] +')');
 						
 					var element = controller.add(
 							["name",updated["name"]],
-							["image", {"elementType" :controller.elementTypes.filter(function(e){ return e.typeName == updated['typeName'];})[0]}],
-							["position", {"x": updated["elementX"], "y": updated["elementY"], "z": updated["elementZ"], "angle":updated["elementAngle"]}]);
+							["image", 
+							 	{"scaleX":updated["scaleX"],
+								"scaleY":updated["scaleY"],
+								"elementType" :controller.elementTypes.filter(function(e){ return e.typeName == updated['typeName'];})[0]}],
+							["position", {"x": updated["x"], "y": updated["y"], "z": updated["z"], "angle":updated["angle"]}]);
 					element.id = updated.id;
 				}
 			});
@@ -143,7 +146,7 @@
 										
 					controller
 						.elements
-						.sort(function(a,b){return ((a.elementZ || 0) - (b.elementZ || 0));})
+						.sort(function(a,b){return ((a.z || 0) - (b.z || 0));})
 						.forEach(function(element)
 						{
 							element.drawMyself();							
