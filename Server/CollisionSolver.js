@@ -30,19 +30,27 @@ var CollisionSolver = function(controller) {
 			vectors: vector.getUnitVectors(point1.x, point1.y,  point2.x , point2.y)};			
 	};
 	
-	var updateAfterCollision = function (element, other, collisionPoints)
+	var getCollisionDetails = function (element, other, collisionPoints)
 	{
 		if (element.solid.mass == Infinity && other.solid.mass == Infinity)
 		{
 			return;
 		}
-				
+			
+		collisionPoints.forEach(
+		function(cp){
+			console.log("collisionPoint: " + cp.x + "," + cp.y);
+		}		
+		);
+		
 		var 
 			colVectors, speedElement, speedOther, localSpeedElement, localSpeedOther, centerCollisionElement,l1,
 			centerCollisionOther,l2;
 		
 		var collisionPoint = getCollisionPoint(collisionPoints);
-		
+
+		console.log("collisionPoint summary : " + collisionPoint.x + "," + collisionPoint.y);
+
 		colVectors = collisionPoint.vectors;
 			
 		centerCollisionElement = new vector.Vector(collisionPoint.x-element.position.x, collisionPoint.y-element.position.y);								
@@ -95,115 +103,60 @@ var CollisionSolver = function(controller) {
 					- element.moving.speed.angle * elementRot.z)
 			/( 1/otherMass + 1/elementMass + otherRot.z*otherRot.z/otherMOI + elementRot.z*elementRot.z/elementMOI );
 
-		element.moving.speed.x += F/elementMass*colVectors.v.x;
-		element.moving.speed.y += F/elementMass*colVectors.v.y;
-		
-		other.moving.speed.x -= F/otherMass*colVectors.v.x;
-		other.moving.speed.y -= F/otherMass*colVectors.v.y;
-		
-		element.moving.speed.angle += F * l1 / elementMOI;
-		other.moving.speed.angle -= F * l2 / otherMOI;				
+		return {
+			e1:{
+				dSpeedX: F/elementMass*colVectors.v.x,
+				dSpeedY: F/elementMass*colVectors.v.y,
+				dSpeedAngle: F * l1 / elementMOI},
+			e2:{
+				dSpeedX: -F/otherMass*colVectors.v.x,
+				dSpeedY: -F/otherMass*colVectors.v.y,
+				dSpeedAngle:- F * l2 / otherMOI}
+		};
 	};
 
-	var hasCollided = function(element, otherElement)
+	this.getCollision = function(element, position, otherElement, otherPosition)
 	{
-		var elementEdges = element.getRealEdges();
-		var otherEdges = otherElement.getRealEdges();
+		var start = new Date().getTime();
 		
-		if(elementEdges.box.radius + otherEdges.box.radius < element.getDistance(otherElement.x, otherElement.y))
-			return false;
-			
-		if (elementEdges.box.right < otherEdges.box.left)
-			return false;
-
-		if (otherEdges.box.right < elementEdges.box.left)
-			return false;
-
-		if (elementEdges.box.bottom < otherEdges.box.top)
-			return false;
-
-		if (otherEdges.box.bottom < elementEdges.box.top)
-			return false;
+		var realBox = element.getRealBox();
+		var otherRealBox = otherElement.getRealBox();
 		
-		var wasIn = undefined;
-		var previousEdge = undefined;
+		// broad stuff 
+		if (realBox.right < otherRealBox.left)
+			return { collided: false};
 
-		var collisionSegments = [];
-		var collisionPoints = 0;
-		elementEdges.edges.forEach(function(realEdge){
-			var isIn = otherElement.isPointInElementEdges(realEdge.x, realEdge.y);
-			if (wasIn != undefined && wasIn != isIn)
-			{
-				collisionPoints++;
-				if(wasIn)
-				{	
-					collisionSegments.push({A:previousEdge, B:realEdge});
-				}
-				else
-				{
-					collisionSegments.push({A:realEdge, B:previousEdge});					
-				}
-			}
-			wasIn = isIn;
-			previousEdge = realEdge;
-		});
-		
-		
-		//close the loop;
-		var firstEdge = elementEdges.edges[0];
-		var firstIn = otherElement.isPointInElementEdges(firstEdge.x, firstEdge.y);
-		if (wasIn != firstIn)
+		if (otherRealBox.right < realBox.left)
+			return { collided: false};
+
+		if (realBox.bottom < otherRealBox.top)
+			return { collided: false};
+
+		if (otherRealBox.bottom < realBox.top)
+			return { collided: false};
+
+		var collisionPoints = [];
+
+		if (element.getDistance(otherPosition.x, otherPosition.y)<50)
 		{
-			collisionPoints++;
-			if(wasIn)
-			{	
-				collisionSegments.push({A:previousEdge, B:firstEdge});
-			}
-			else
-			{
-				collisionSegments.push({A:firstEdge, B:previousEdge});
-			}
+			var col = { x:(otherPosition.x+position.x)/2,
+						y:(otherPosition.y+position.y)/2};
+			collisionPoints.push({x:col.x, y:col.y-5});
+			collisionPoints.push({x:col.x, y:col.y+5});
 		}
-
-//		if (collisionPoints<2)
-	//		return;
-
-		if (collisionSegments.length < 2)
-			return false;		
+			
+			
+		if (collisionPoints.length < 2)
+		{
+			//console.log("No collision. Time: " + (new Date().getTime()-start));
+			return { collided: false};
+		}
 		
-		var collisionPoints = collisionSegments.map(function(s){
-			while (Math.abs(s.A.x - s.B.x)>1 || Math.abs(s.A.y - s.B.y)>1)
-			{
-				var x = (s.A.x + s.B.x)/2;
-				var y = (s.A.y + s.B.y)/2;
-				if (otherElement.isPointInElementEdges(x, y))
-				{
-					s.A = {x:x,y:y};
-				}
-				else
-				{
-					s.B = {x:x,y:y};
-				}
-			}
-			return {x:(s.A.x+s.B.x)/2,y:(s.A.y+s.B.y)/2};
-			});
-				
-		updateAfterCollision(element, otherElement, collisionPoints);
-		
-		return true;
-	};
+		console.log("Collision. Total time find+update: " + (new Date().getTime()-start));
 
-	this.solveCollision = function(element)
-	{			
-		return element
-			.controller
-			.elements
-			.filter(function(e){return e.id != element.id && e.solid && !e.duplicable;})
-			.every(
-			function(other)
-			{				
-				return !hasCollided(element, other);
-			});
+		return {
+			collided: true,
+			collisionDetails: getCollisionDetails(element, otherElement, collisionPoints)};
 	};
 };
 

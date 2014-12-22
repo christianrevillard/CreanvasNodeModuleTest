@@ -44,17 +44,17 @@ var MovingElement = function(parent, elementMoving)
 	};
 	
 	moving.lastUpdated = moving.parent.controller.getTime();
-	
-	parent.controller.setInterval(
-		function(){ moving.move() },
-		40);
 };
 
 MovingElement.prototype.move = function()
 {
-	var rollbackData;
+//	var rollbackData;
+	
 	var moving = this;
-
+	
+	moving.parent.newPosition = null;
+	moving.parent.newScale = null;
+	
 	var currentTime = moving.parent.controller.getTime();
 	var dt = currentTime - moving.lastUpdated;
 
@@ -84,11 +84,10 @@ MovingElement.prototype.move = function()
 	}
 	else
 	{
+		// todo, after (or test with gravity first...)
 		moving.speed.x += moving.acceleration.x * dt;
 		moving.speed.y += moving.acceleration.y * dt;			
-	}
-	
-	
+	}	
 
 	if (moving.speed.x == 0 &&
 			moving.speed.y == 0 &&
@@ -107,72 +106,41 @@ MovingElement.prototype.move = function()
 	dElementScaleX = moving.scaleSpeed?moving.scaleSpeed.x * dt : 0;
 	dElementScaleY = moving.scaleSpeed?moving.scaleSpeed.y * dt : 0;
 
+	// can be used for newAngle value, it is useful to keep it in this range?
+	/* var newAngle = moving.parent.position.angle;
+	while (newAngle > Math.PI) newAngle-= 2* Math.PI;
+	while (newAngle < -Math.PI) newAngle+= 2* Math.PI;
+	moving.parent.position.angle = newAngle; */
 	
-	// check the rules for angle and scale... must correspond to about a point
-	var discret = Math.ceil(
-			Math.max(
-					Math.abs(dElementX), 
-					Math.abs(dElementY), 
-					Math.abs(dElementAngle*180*Math.PI),
-					Math.abs(dElementScaleX*10), 
-					Math.abs(dElementScaleY*10) 
-					)				
-	);
+	moving.parent.newPosition = {
+		x: moving.parent.position.x + dElementX,
+		y: moving.parent.position.y + dElementY,
+		angle: moving.parent.position.anlge + dElementAngle};
+
+	moving.parent.newScale = {
+		x: moving.parent.scale.x + dElementScaleX,
+		y: moving.parent.scale.y + dElementScaleY};
 	
-	for (var inc=0; inc<discret; inc++)
-	{			
-		moving.rollbackData = 
-		{
-				x: moving.parent.position.x, 
-				y: moving.parent.position.y, 
-				angle: moving.parent.position.angle,
-				scaleX: moving.parent.scale.x,
-				scaleY: moving.parent.scale.y
-		};
+	if ( moving.parent.newPosition.x>moving.movingLimits.xMax || moving.parent.newPosition.x<moving.movingLimits.xMin)
+	{
+		moving.parent.newPosition.x = moving.parent.position.x; 
+	}
 
-		moving.parent.position.x += dElementX/discret; 
-		moving.parent.position.y += dElementY/discret; 
-		moving.parent.position.angle += dElementAngle/discret;
-		moving.parent.scale.x += dElementScaleX/discret;
-		moving.parent.scale.y += dElementScaleY/discret;
-
-		if (moving.parent.solid && !moving.parent.solid.preMove())
-		{
-//			console.log('Cannot move  '+ element.id);
-			moving.parent.position.x = moving.rollbackData.x; 
-			moving.parent.position.y = moving.rollbackData.y;
-			moving.parent.position.angle = moving.rollbackData.angle;
-			moving.parent.scale.x = moving.rollbackData.scaleX;
-			moving.parent.scale.y = moving.rollbackData.scaleY;
-			return;
-		}
-
-		if ( moving.parent.position.x>moving.movingLimits.xMax || moving.parent.position.x<moving.movingLimits.xMin)
-		{
-			moving.parent.position.x = moving.rollbackData.x; 
-		}
-
-		if (moving.parent.position.y>moving.movingLimits.yMax || moving.parent.position.y<moving.movingLimits.yMin) 				
-		{
-			moving.parent.position.y = moving.rollbackData.y; 
-		}
+	if (moving.parent.newPosition.y>moving.movingLimits.yMax || moving.parent.newPosition.y<moving.movingLimits.yMin) 				
+	{
+		moving.parent.newPosition.y = moving.parent.newPosition.y; 
+	}
 		
-		if (moving.targetElementX !== undefined)
+	if (moving.targetElementX !== undefined)
+	{
+		if ( 
+		(moving.targetElementX-moving.parent.newPosition.x)*(moving.targetElementX-moving.parent.newPosition.x)<1
+		&& (moving.targetElementY-moving.parent.newPosition.y)*(moving.targetElementY-moving.parent.newPosition.y) <1)
 		{
-			if ( 
-			(moving.targetElementX-moving.parent.position.x)*(moving.targetElementX-moving.parent.position.x)<1
-			&& (moving.targetElementY-moving.parent.position.y)*(moving.targetElementY-moving.parent.position.y) <1)
-			{
-				moving.targetElementX = moving.targetElementY = undefined;
-				moving.speed = moving.originalSpeed || { x:0, y:0, angle:0};
-			}
+			moving.targetElementX = moving.targetElementY = undefined;
+			moving.speed = moving.originalSpeed || { x:0, y:0, angle:0};
 		}
-
-		var newAngle = moving.parent.position.angle;
-		while (newAngle > Math.PI) newAngle-= 2* Math.PI;
-		while (newAngle < -Math.PI) newAngle+= 2* Math.PI;
-		moving.parent.position.angle = newAngle;
-	}		
+	}
 };
 
 exports.applyTo = applyTo;

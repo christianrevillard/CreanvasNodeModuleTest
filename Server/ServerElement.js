@@ -33,27 +33,49 @@ var setImage = function(element, elementTemplate) {
 	
 	element.typeName = elementTemplate.typeName;
 
-	var width = elementTemplate.box.width;
-	var height = elementTemplate.box.height;
+	element.controller.waitingElements = element.controller.waitingElements || 0;
+	element.controller.waitingElements++;
+	console.log('Now waiting for ' + element.controller.waitingElements + ' elements');
+	element.controller.paused = true;
 
-	element.box = {};
-	// elementTemplate.box - mandatory
-	element.box.top = elementTemplate.box.top == 0 ? 0 : elementTemplate.box.top || (-height / 2);
-	element.box.left = elementTemplate.box.left == 0 ? 0 : elementTemplate.box.left || (-width / 2);
-	element.box.bottom = elementTemplate.box.bottom == 0 ? 0 : elementTemplate.box.bottom || (element.box.top + height);
-	element.box.right = elementTemplate.box.right == 0 ? 0 : elementTemplate.box.right || (element.box.left + width);
-	element.box.width = width || (element.box.right - element.box.left);
-	element.box.height = height || (element.box.bottom - element.box.top);
+	var setElementType = function()
+	{
+		var elementType = element.controller.elementTypes.filter(function(t){ return t.typeName == element.typeName})[0];
 		
+		if (elementType == undefined || elementType.boxData == undefined)
+		{
+			setTimeout(setElementType, 20);
+			console.log('Waiting for ' + element.typeName);
+			return;			
+		}
+		element.box = {};
+		// elementTemplate.box - mandatory
+		element.box.top = elementType.boxData.top;
+		element.box.left =elementType.boxData.left;
+		element.box.bottom = elementType.boxData.bottom;
+		element.box.right = elementType.boxData.right;
+		element.box.width = elementType.boxData.width;
+		element.box.height = elementType.boxData.height;
+		element.controller.waitingElements = element.controller.waitingElements || 0;
+		element.controller.waitingElements--;
+		element.controller.paused = element.controller.waitingElements>0;
+
+		console.log('Still waiting for ' + element.controller.waitingElements + ' elements');
+		if (element.controller.waitingElements<=0)
+		{
+			console.log("READY FOR START !!!!!!!!!!!!!!!");
+			console.log("paused: " + element.controller.paused);
+		}
+	};
+	setTimeout(setElementType, 0);
+	
+	/* todo later
 	if (elementTemplate["isPointInElementEdges"])
 		element.isPointInElementEdges = elementTemplate["isPointInElementEdges"];
 
 	if (elementTemplate["getEdges"])
 		element.getEdges = elementTemplate["getEdges"];
-
-	element.experimentalIsPointInElement = elementTemplate["experimentalIsPointInElement"];
-
-	element.experimentalGetEdgePoint = elementTemplate["experimentalGetEdgePoint"];
+		*/
 };
 
 var setPosition = function(element, elementTemplate) {
@@ -147,7 +169,35 @@ Element.prototype.removeEventListener = function(id) {
 
 Element.prototype.isPointInElementEdges = function(x, y) {
 
-	var element = this;
+	var local = this.getElementXYFromRealXY({x:x, y:y});
+	
+	if(!this.solid.isInside)
+		return false;
+	
+	return this.solid.isInside.call(this, local.x, local.y);
+
+/*	var elementType = element.controller.elementTypes.filter(function(t){ return t.typeName == element.typeName})[0];
+
+	var imageData = elementType.imageData;
+	
+	var local = this.getElementXYFromRealXY({x:x, y:y});
+	
+	var imageX = local.x - elementType.boxData.left;
+	var imageY = local.y - elementType.boxData.top;
+	
+	if (imageX < 0 || 
+			imageX >= elementType.boxData.width || 
+			imageY < 0 || 
+			imageY >= elementType.boxData.height)
+	{
+		//console.log(local.x + ' , ' + local.y + '  not in  ' + elementType.boxData.width + ' , ' + elementType.boxData.height  );
+		return false;
+	}
+
+	if (imageData[elementType.boxData.width*4*imageY + 4*imageX + 3]>50)
+		console.log(x + ',' + y + ' / ' + local.x + ' , ' + local.y + '  is inside - ' + imageData[elementType.boxData.width*4*imageY + 4*imageX + 3]);
+
+	return imageData[elementType.boxData.width*4*imageY + 4*imageX + 3]>50;
 	
 	// borderline effect with ==y
 	var realEdges = element.getRealCornerEdges().map(
@@ -181,6 +231,7 @@ Element.prototype.isPointInElementEdges = function(x, y) {
 			; });
 
 	return intersections.length % 2 == 1;
+*/
 };
 
 Element.prototype.getRealXYFromElementXY  = function(xY)
@@ -195,9 +246,30 @@ Element.prototype.getRealXYFromElementXY  = function(xY)
 	return xy;
 };
 
+Element.prototype.getElementXYFromRealXY = function(real)
+{		
+	var element = this;
+
+	var elementType = element.controller.elementTypes.filter(function(t){ return t.typeName == element.typeName})[0];
+
+	return {
+		x: Math.round((real.x - element.position.x)/element.scale.x*Math.cos(element.position.angle) 
+			+ (real.y - element.position.y)/element.scale.y*Math.sin(element.position.angle)),
+		y: Math.round(-(real.x - element.position.x)/element.scale.x*Math.sin(element.position.angle) 
+			+ (real.y - element.position.y)/element.scale.y*Math.cos(element.position.angle))
+		};
+
+/*		return {
+			x: elementType.boxData.left + Math.round((real.x - element.position.x)/element.scale.x*Math.cos(element.position.angle) 
+				+ (real.y - element.position.y)/element.scale.y*Math.sin(element.position.angle)),
+			y: elementType.boxData.top + Math.round(-(real.x - element.position.x)/element.scale.x*Math.sin(element.position.angle) 
+				+ (real.y - element.position.y)/element.scale.y*Math.cos(element.position.angle))
+			};*/
+};
+
 Element.prototype.getEdges = function()
 {
-	if (this.edges)
+	if (this.edges && this.edges.length>0)
 		return this.edges;
 
 	var element = this;
@@ -258,8 +330,45 @@ Element.prototype.getRealEdges  = function()
 				}
 			};
 	}
-
+		
 	return this.realEdges
+};
+
+Element.prototype.getRealBox  = function()
+{
+	var element = this;
+
+	if (!this.realBox 
+			|| this.realBox.info.x!=this.position.x 
+			|| this.realBox.info.y!=this.position.y
+			|| this.realBox.info.angle!=this.position.angle
+			|| this.realBox.info.scaleX!=this.scale.x
+			|| this.realBox.info.scaleY!=this.scale.y)
+	{
+		var realEdges=[];
+		realEdges.push(element.getRealXYFromElementXY({x:element.box.left,y:element.box.top}));
+		realEdges.push(element.getRealXYFromElementXY({x:element.box.right,y:element.box.top}));
+		realEdges.push(element.getRealXYFromElementXY({x:element.box.left,y:element.box.bottom}));
+		realEdges.push(element.getRealXYFromElementXY({x:element.box.right,y:element.box.bottom}));
+
+		this.realBox = 
+			{	
+				info:
+				{
+					x: this.position.x,
+					y: this.position.y,
+					angle: this.position.angle,
+					scaleX: this.scale.x,
+					scaleY: this.scale.y
+				},
+				left: realEdges.reduce(function(current,edge){ return Math.min(current,edge.x);}, Infinity),
+				top: realEdges.reduce(function(current,edge){ return Math.min(current,edge.y);}, Infinity),
+				right: realEdges.reduce(function(current,edge){ return Math.max(current,edge.x);}, 0),
+				bottom: realEdges.reduce(function(current,edge){ return Math.max(current,edge.y);}, 0)				
+			};
+	}
+	
+	return this.realBox;
 };
 
 exports.Element = Element;

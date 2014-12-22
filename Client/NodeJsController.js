@@ -269,10 +269,8 @@
 		return corners;
 	};
 	
-	creanvas.NodeJsController.prototype.getEdges = function(draw, boxData)
-	{
-		// TODO, send raw imagedata, compute edges on server,,,
-		
+	creanvas.NodeJsController.prototype.getImageData = function(draw, boxData)
+	{	
 		var controller = this;
 		var edges = [];
 
@@ -290,163 +288,35 @@
 		if (width == 0 || height == 0)
 			return null;
 		
-		var edgeResolution = boxData['edgeResolution'] || 10;
-		var edgeResolutionX  = Math.min(edgeResolution, width/10); // at leat 10 points in tempCanvas	
+		/*var edgeResolution = boxData['edgeResolution'] || 10;
+		var edgeResolutionX = Math.min(edgeResolution, width/10); // at leat 10 points in tempCanvas	
 		var edgeResolutionY = Math.min(edgeResolution, height/10); // at leat 10 points in tempCanvas
+		*/
 		
 		var tempCanvas = controller.context.canvas.ownerDocument.createElement('canvas');
 		var temporaryRenderingContext = tempCanvas.getContext("2d");
-
-		//Debug // controller.context.canvas.ownerDocument.body.appendChild(tempCanvas);
 		
-		tempCanvas.width = Math.ceil(width / edgeResolutionX);
-		tempCanvas.height = Math.ceil(height / edgeResolutionY);
+		tempCanvas.width = width; //Math.ceil(width / edgeResolutionX);
+		tempCanvas.height = height; //Math.ceil(height / edgeResolutionY);
 
 		temporaryRenderingContext.beginPath();
-		temporaryRenderingContext.translate(-left/edgeResolutionX, -top/edgeResolutionY);
-		temporaryRenderingContext.scale(1/edgeResolutionX, 1/edgeResolutionY);
+		temporaryRenderingContext.translate(-left, -top);
+//		temporaryRenderingContext.translate(-left/edgeResolutionX, -top/edgeResolutionY);
+	//	temporaryRenderingContext.scale(1/edgeResolutionX, 1/edgeResolutionY);
 		draw(temporaryRenderingContext);
-		
-		var edgeImage = temporaryRenderingContext.getImageData(0, 0, tempCanvas.width, tempCanvas.height);
-		
-		var startEdge = null;
-		var transparencyLimit = 1;
-		
-		var imageX= null;
-		var imageY = null;
-		var currentEdge = null;
-		
-		var checkPoint = function(x,y,edge, isCorner)
-		{
-			if (edgeImage.data[y*tempCanvas.width*4 + x*4 + 3] < transparencyLimit)
-				return false;
-							
-			var match = false;
-			
-			if (edge == "top")
-			{
-				match = y==0 || edgeImage.data[(y-1)*tempCanvas.width*4 + x*4 + 3] < transparencyLimit;
-				dx = 0.5; dy=0;
-			}
-			if (edge == "left")
-			{
-				match = x==0 || edgeImage.data[y*tempCanvas.width*4 + (x-1)*4 + 3] < transparencyLimit;
-				dx = 0; dy=0.5;
-			}
-			if (edge == "right")
-			{
-				match = x==tempCanvas.width-1 || edgeImage.data[y*tempCanvas.width*4 + (x+1)*4 + 3] < transparencyLimit;
-				dx = 1; dy=0.5;
-			}
-			if (edge == "bottom")
-			{
-				match = y==tempCanvas.height-1 || edgeImage.data[(y+1)*tempCanvas.width*4 + x*4 + 3] < transparencyLimit;
-				dx = 0.5; dy=1;
-			};
 
-			if (!match)
-				return;
-			
-			edges.push({
-				x: (x + dx)*edgeResolutionX + left,
-				y: (y + dy)*edgeResolutionY + top,
-				isCorner: isCorner}); 
+		boxData["top"] = top;
+		boxData["left"] = left;
+		boxData["bottom"] = bottom;
+		boxData["right"] = right;
+		boxData["width"] = width;
+		boxData["height"] = height;
 
-			imageX = x;
-			imageY = y;
-			currentEdge = edge;
-
-			return true;
+		return {
+			data: temporaryRenderingContext.getImageData(0, 0, tempCanvas.width, tempCanvas.height).data,
+			"width":tempCanvas.width,
+			"height":tempCanvas.height
 		};
-			
-		for (var forX=0;forX<tempCanvas.width; forX++)
-		{
-			for (var forY=0;forY<tempCanvas.height; forY++)
-			{
-				if (checkPoint(forX, forY, "top", true))
-				{
-					startEdge = {x:imageX, y:imageY};
-					forX = tempCanvas.width; forY=tempCanvas.height;
-				}
-			}
-		}
-
-		if (startEdge)
-		{						
-			do 
-			{
-				if (currentEdge == "top")
-				{
-					if (imageX<tempCanvas.width-1 && imageY>0 && checkPoint(imageX+1, imageY-1, "left", true))
-					{
-						continue;
-					}
-					
-					if (imageX<tempCanvas.width-1 && checkPoint(imageX+1, imageY, "top", false))
-					{
-						continue;
-					}
-					
-					if (checkPoint(imageX, imageY, "right", true))
-					{
-						continue;
-					}
-				}
-				else if (currentEdge == "right")
-				{
-					if (imageX<tempCanvas.width-1 && imageY<tempCanvas.height-1 && checkPoint(imageX+1, imageY+1, "top", true))
-					{
-						continue;
-					}
-					
-					if (imageY<tempCanvas.height-1 && checkPoint(imageX, imageY+1, "right",false))
-					{
-						continue;
-					}
-					
-					if (checkPoint(imageX, imageY, "bottom",true))
-					{
-						continue;
-					}
-				}
-				else if (currentEdge == "bottom")
-				{
-					if (imageX>0 && imageY<tempCanvas.height-1 && checkPoint(imageX-1, imageY+1, "right",true))
-					{
-						continue;
-					}
-					
-					if (imageX>0 && checkPoint(imageX-1, imageY, "bottom",false))
-					{
-						continue;
-					}
-					
-					if (checkPoint(imageX, imageY, "left", true))
-					{
-						continue;
-					}
-				}
-				else if (currentEdge == "left")
-				{
-					if (imageX>0 && imageY>0 && checkPoint(imageX-1, imageY-1, "bottom", true))
-					{
-						continue;
-					}
-					
-					if (imageY>0 && checkPoint(imageX, imageY-1, "left", false))
-					{
-						continue;
-					}
-					
-					if (checkPoint(imageX, imageY, "top", true))
-					{
-						continue;
-					}
-				}
-			} while (imageX != startEdge.x || imageY != startEdge.y);
-		}		
-		
-		return edges;
 	};
 
 	// x,y in Real values
@@ -459,17 +329,19 @@
 	creanvas.NodeJsController.prototype.addElementType = function(typeName, draw, boxData)
 	{
 		// compute edges
-		var edges = boxData == null ? null : this.getEdges(draw, boxData);
+		var imageData = boxData == null ? null : this.getImageData(draw, boxData);
 		
-		this.elementTypes.push({typeName:typeName, draw:draw, edges:edges});
+		this.elementTypes.push({typeName:typeName, draw:draw});
 		
-		// send to server.
-		// should compute on server, really, but how without canvas ? or use nodes-canvas type stuff?
 		this.emitToServer(
 				'registerEdges', 
 				{
 					"typeName":typeName, 
-					"edges":edges
+					"imageData": imageData == null ? null : imageData.data,
+					"boxData": boxData,
+					"width": imageData == null ? null : imageData.width,
+					"height": imageData == null ? null : imageData.height
+
 				});
 	};
 

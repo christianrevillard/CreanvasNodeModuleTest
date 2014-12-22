@@ -5,6 +5,7 @@ var SolidElement = function(parent, solidData) {
 	this.parent = parent;
 	this.mass = solidData.mass === 0 ? 0 : solidData.mass || Infinity;
 	this.collisionCoefficient = solidData.collisionCoefficient === 0 ? 0 : solidData.collisionCoefficient || 1;
+	this.isInside = solidData.isInside;
 };
 
 SolidElement.prototype.preMove = function() {		
