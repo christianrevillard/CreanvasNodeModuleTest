@@ -46,22 +46,31 @@ var MovingElement = function(parent, elementMoving)
 	moving.lastUpdated = moving.parent.controller.getTime();
 };
 
-MovingElement.prototype.move = function()
+MovingElement.prototype.move = function(useExistingDt)
 {
 //	var rollbackData;
 	
 	var moving = this;
 	
-	moving.parent.newPosition = null;
-	moving.parent.newScale = null;
-	
-	var currentTime = moving.parent.controller.getTime();
-	var dt = currentTime - moving.lastUpdated;
+	moving.parent.previousPosition = null;
+	moving.parent.previousScale = null;
 
+	var dt;
+	if(!useExistingDt)
+	{
+		var currentTime = moving.parent.controller.getTime();
+		dt = currentTime - moving.lastUpdated;
+		moving.parent.dt = dt;
+		moving.lastUpdated = currentTime;
+	}
+	else
+	{
+		dt = moving.parent.dt;
+	}
+	
 	if (dt < 0.001)
 		return;
 
-	moving.lastUpdated = currentTime;
 	
 	if (moving.targetElementX !== undefined && moving.targetElementY !== undefined )
 	{
@@ -111,36 +120,79 @@ MovingElement.prototype.move = function()
 	while (newAngle > Math.PI) newAngle-= 2* Math.PI;
 	while (newAngle < -Math.PI) newAngle+= 2* Math.PI;
 	moving.parent.position.angle = newAngle; */
+
+	// temp rollback function, need to refine deplacemnt oon collision
+	moving.parent.previousPosition = moving.parent.position;
+	moving.parent.previousScale = moving.parent.scale;
 	
-	moving.parent.newPosition = {
+	moving.parent.position = {
 		x: moving.parent.position.x + dElementX,
 		y: moving.parent.position.y + dElementY,
 		angle: moving.parent.position.anlge + dElementAngle};
 
-	moving.parent.newScale = {
+	moving.parent.previousBoundaryBox = moving.parent.boundaryBox;
+	moving.parent.boundaryBox = moving.parent.getBoundaryBox(moving.parent.position);
+
+	moving.parent.scale = {
 		x: moving.parent.scale.x + dElementScaleX,
 		y: moving.parent.scale.y + dElementScaleY};
 	
-	if ( moving.parent.newPosition.x>moving.movingLimits.xMax || moving.parent.newPosition.x<moving.movingLimits.xMin)
+	if ( moving.parent.position.x>moving.movingLimits.xMax || moving.parent.position.x<moving.movingLimits.xMin)
 	{
-		moving.parent.newPosition.x = moving.parent.position.x; 
+		moving.parent.position.x = moving.parent.previousPosition.x; 
 	}
 
-	if (moving.parent.newPosition.y>moving.movingLimits.yMax || moving.parent.newPosition.y<moving.movingLimits.yMin) 				
+	if (moving.parent.position.y>moving.movingLimits.yMax || moving.parent.position.y<moving.movingLimits.yMin) 				
 	{
-		moving.parent.newPosition.y = moving.parent.newPosition.y; 
+		moving.parent.position.y = moving.parent.previousPosition.y; 
 	}
 		
 	if (moving.targetElementX !== undefined)
 	{
 		if ( 
-		(moving.targetElementX-moving.parent.newPosition.x)*(moving.targetElementX-moving.parent.newPosition.x)<1
-		&& (moving.targetElementY-moving.parent.newPosition.y)*(moving.targetElementY-moving.parent.newPosition.y) <1)
+		(moving.targetElementX-moving.parent.position.x)*(moving.targetElementX-moving.parent.position.x)<1
+		&& (moving.targetElementY-moving.parent.position.y)*(moving.targetElementY-moving.parent.position.y) <1)
 		{
 			moving.targetElementX = moving.targetElementY = undefined;
 			moving.speed = moving.originalSpeed || { x:0, y:0, angle:0};
 		}
 	}
+
+	//moving.parent.previousTiles = moving.parent.broadTiles;
+	
+	moving.parent.broadTiles.forEach(function(tile){
+		// remove from all tiles
+		tile.elements = tile.elements.filter(function(remove){ return moving.parent.id != remove.id});
+	});
+	
+	// readd, in both positions
+	moving.parent.broadTiles = moving.parent.controller.broadTiles.filter(function(tile){
+		return (tile.right>=moving.parent.boundaryBox.left &&
+				tile.bottom>=moving.parent.boundaryBox.top &&
+				tile.left<=moving.parent.boundaryBox.right &&
+				tile.top<=moving.parent.boundaryBox.bottom)
+				||
+				(tile.right>=moving.parent.previousBoundaryBox.left &&
+						tile.bottom>=moving.parent.previousBoundaryBox.top &&
+						tile.left<=moving.parent.previousBoundaryBox.right &&
+						tile.top<=moving.parent.previousBoundaryBox.bottom);
+		});
+	
+	moving.parent.broadTiles.forEach(function(tile){
+		tile.elements.push(moving.parent);
+	});
+
+};
+
+MovingElement.prototype.accelerate = function()
+{
+	var moving = this;
+	
+	if (moving.targetElementX !== undefined && moving.targetElementY !== undefined )
+		return;
+
+	moving.speed.x += moving.acceleration.x * moving.parent.dt;
+	moving.speed.y += moving.acceleration.y * moving.parent.dt;			
 };
 
 exports.applyTo = applyTo;

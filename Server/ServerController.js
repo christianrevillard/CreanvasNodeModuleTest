@@ -32,13 +32,33 @@ var Controller = function(applicationSocket, applicationInstance, autoStart) {
 	// to do, move all in CollisionSolver stuff, but we go quick for the moment.
 	controller.collisionMatrix = [];
 	
+	controller.broadTiles=[];
+	
+	var width=700;
+	var height=500; // from client somehow
+	var broadTilesWidth=50; //config from client/socket, to tweak.. //60 not bad
+
+	for (var left=0;left<width;left+=broadTilesWidth)
+		for (var top=0;top<height;top+=broadTilesWidth)
+	{
+		controller.broadTiles.push({
+			left:left,
+			top:top,
+			right:left+broadTilesWidth,
+			bottom:top+broadTilesWidth,
+			elements:[]
+		});
+	}
 	
 	// new frame process, split, clarify??
 	controller.setInterval(function() {
 		
-		//move movable - will check collision and stuff
+		
+		if (controller.paused)
+			return;
 		
 		var currentTime = controller.getTime();
+		var start = (new Date()).getTime();
 		
 		controller
 		.elements
@@ -51,73 +71,206 @@ var Controller = function(applicationSocket, applicationInstance, autoStart) {
 			e.moving.move();
 			e.moving.collided = false;
 		});
-		
-		// solve collisions
-		controller.collisionMatrix.forEach(function(c){
-			c.new1 = c.e1.newPosition?true:false;
-			c.new2 = c.e2.newPosition?true:false;
-			c.collided = undefined;			
+
+	//	console.log("To completed moves : " + ((new Date()).getTime() - start));
+
+		var collisionsToCheck = [];
+		var collisionsToCheckTable = [];
+	//	var collisionsToHandle = [];		
+
+		controller.broadTiles.forEach(function(tile){
+			tile.elements.forEach(function(e1){
+				tile.elements.filter(function(e){return e.id>e1.id;}).forEach(function(e2){
+					if (!e1.previousPosition && !e2.previousPosition)
+						return;
+					
+					if (collisionsToCheck[e1.id] && collisionsToCheck[e1.id][e2.id])
+						return;
+
+					var toCheck = {
+						e1:e1,
+						e2:e2, 
+						status:undefined};
+					
+					collisionsToCheckTable[e1.id]=collisionsToCheckTable[e1.id]||[];
+					collisionsToCheckTable[e2.id]=collisionsToCheckTable[e2.id]||[];
+					collisionsToCheckTable[e1.id][e2.id] = collisionsToCheckTable[e2.id][e1.id] = toCheck;
+					
+					collisionsToCheck.push(toCheck);
+				})
+			})
 		});
 
-		controller.collisionMatrix.filter(function(c){ return !c.new1 && !c.new2;})
-		.forEach(function(c){
-			c.collided = false;			
-		});
+//		console.log("Broad phase : " + collisionsToCheck.length + " collisions to check");
+		//	console.log("Average : " + collisionsToCheck.length/controller.broadTiles.length + " collisions per broadTiles");
+		//console.log("To completed broad phase : " + ((new Date()).getTime() - start));
 
-		//TODO: broad phase
-
-		while(controller.collisionMatrix.some(function(c){ return c.collided === undefined;}))
+		while(collisionsToCheck.length>0)
 		{
-			controller.collisionMatrix.filter(function(c){ return c.collided === undefined;})
-			.forEach(function(c){
-				var collision = controller.collisionSolver.getCollision(
-					c.e1,
-					c.new1?c.e1.newPosition:c.e1.position,
-					c.e2,
-					c.new2?c.e2.newPosition:c.e2.position);
-				
+			var c = collisionsToCheck.shift();
+			
+			if (c.status !== undefined)
+				continue;
+			
+			var collision = controller.collisionSolver.getCollision(
+				c.e1,
+				c.e1.position,
+				c.e2,
+				c.e2.position);
+			
+			if (collision.collided)
+			{
+				collisionsToCheckTable[c.e1.id][c.e2.id].status = 
+					collisionsToCheckTable[c.e2.id][c.e1.id].status = true;
+
+				//console.log('COLLISION : ' + c.e1.id + ' / ' + c.e2.id);
 				c.collided = collision.collided;
-				if (c.collided)
+				c.collisionDetails = collision.collisionDetails; // point at least. F already?
+				c.e1.moving.collided = true;
+				c.e2.moving.collided = true;
+				
+				var stuff=0.95;
+				
+				c.e1.moving.speed.x+=stuff*c.collisionDetails.e1.dSpeedX;
+				c.e1.moving.speed.y+=stuff*c.collisionDetails.e1.dSpeedY;
+				c.e1.moving.speed.angle+=stuff*c.collisionDetails.e1.dSpeedAngle;
+
+				c.e2.moving.speed.x+=stuff*c.collisionDetails.e2.dSpeedX;
+				c.e2.moving.speed.y+=stuff*c.collisionDetails.e2.dSpeedY;
+				c.e2.moving.speed.angle+=stuff*c.collisionDetails.e2.dSpeedAngle;
+						
+				// broad: find tiles for old and add all collisions with new inside this tile.
+
+				var beforeUpdate = collisionsToCheck.length;
+
+				/*if (c.e1.previousPosition && !c.e2.previousPosition)
 				{
-					c.collisionDetails = collision.collisionDetails; // point at least. F already?
-					c.e1.moving.collided = true;
-					c.e2.moving.collided = true;
+					//can I get the correct overlap??? otherwise, try dichotomy
+
+					// all overlap on 1 
+					// todo, not only on y-
+					var triedMove1 = Math.abs(c.e1.position.y - c.e1.previousPosition.y);
+					var actualMove1 = triedMove1-collision.overlap 
+					c.e1.dt =  c.e1.dt*actualMove1/triedMove1;
+					c.e1.position = c.e1.previousPosition;
+					c.e1.scale = c.e1.previousScale;
+					c.e1.moving.move(true);
 				}
-			});
-	
-			controller.collisionMatrix.filter(function(c){ return c.collided === false && ((c.e1.moving.collided && c.new1) || (c.e2.moving.collided && c.new2));})
-			.forEach(function(c){
-				c.new1 &= !c.e1.moving.collided 
-				c.new2 &= !c.e2.moving.collided 
-				c.collided = (c.new1 || c.new2)?undefined:false;
-			});
+
+								if (c.e2.previousPosition && !c.e1.previousPosition)
+				{
+					
+					// all overlap on 2 
+					// todo, not only on y-
+					var triedMove2 = Math.abs(c.e2.position.y - c.e2.previousPosition.y);
+					var actualMove2 = triedMove2-collision.overlap 
+					c.e2.dt =  c.e2.dt*actualMove2/triedMove2;
+					c.e2.position = c.e2.previousPosition;
+					c.e2.scale = c.e2.previousScale;
+					c.e2.moving.move(true);
+				}
+
+				if (c.e2.previousPosition && c.e1.previousPosition)
+				{
+					//todo, repartition...
+					c.e1.position = c.e1.previousPosition;
+					c.e2.position = c.e2.previousPosition;
+				}*/
+				
+				c.e1.newPosition = c.e1.position;
+				c.e2.newPosition = c.e2.position;
+
+				var t=1;
+				do{
+					t-=0.1;
+					if (c.e1.previousPosition)
+					{
+						c.e1.position = {
+							x:c.e1.previousPosition.x+t*(c.e1.newPosition.x-c.e1.previousPosition.x),
+							y:c.e1.previousPosition.y+t*(c.e1.newPosition.y-c.e1.previousPosition.y),
+							z:c.e1.position.z,
+							angle:c.e1.position.angle
+						};
+					}
+					if (c.e2.previousPosition)
+					{
+						c.e2.position = {
+							x:c.e2.previousPosition.x+t*(c.e2.newPosition.x-c.e2.previousPosition.x),
+							y:c.e2.previousPosition.y+t*(c.e2.newPosition.y-c.e2.previousPosition.y),
+							z:c.e2.position.z,
+							angle:c.e2.position.angle
+						};
+					}
+					
+				} while (t>0 && controller.collisionSolver.getCollision(
+						c.e1,
+						c.e1.position,
+						c.e2,
+						c.e2.position).collided);
+								
+				if (c.e1.previousPosition)
+				{
+					if (t<=0.01)
+					{
+						c.e1.previousPosition = null;
+						c.e1.dt = 0;
+					}
+					else
+					{
+						c.e1.dt = t*c.e1.dt;
+					}
+					
+					c.e1.boundaryBox = c.e1.getBoundaryBox(c.e1.position);
+
+					collisionsToCheckTable[c.e1.id]
+						.filter(function(cell){ return cell.status === false })
+						.forEach(function(cell){
+							collisionsToCheckTable[cell.e1.id][cell.e2.id].status = 
+							collisionsToCheckTable[cell.e2.id][cell.e1.id].status = undefined;
+							collisionsToCheck.push(collisionsToCheckTable[cell.e1.id][cell.e2.id]);
+						});
+				}
+
+				//TODO unduplicate
+				if (c.e2.previousPosition)
+				{
+					if (t<=0.01)
+					{
+						c.e2.previousPosition = null;
+						c.e2.dt = 0;
+					}
+					else
+					{
+						c.e2.dt = t*c.e2.dt;
+					}
+
+					c.e2.boundaryBox = c.e2.getBoundaryBox(c.e2.position);
+					
+					collisionsToCheckTable[c.e2.id]
+					.filter(function(cell){ return cell.status === false })
+					.forEach(function(cell){
+						collisionsToCheckTable[cell.e1.id][cell.e2.id].status = 
+						collisionsToCheckTable[cell.e2.id][cell.e1.id].status = undefined;
+						collisionsToCheck.push(collisionsToCheckTable[cell.e1.id][cell.e2.id]);
+					});
+				}
+			}
+			else
+			{
+				collisionsToCheckTable[c.e1.id][c.e2.id].status = collisionsToCheckTable[c.e2.id][c.e1.id].status = false;
+			}
 		};
 
 		controller
 		.elements
-		.filter(function(e){return e.moving && e.newPosition && e.moving.collided;})
+		.filter(function(e){return e.moving;})
 		.forEach(
 		function(e)
 		{				
-			// update elements not involved in collision	
-			e.position = e.newPosition;
+//			if (e.moving.collided)
+	//			e.moving.dt = 0; // to do refine based on deplacement
+			e.moving.accelerate(); 
 		});
-
-		controller.collisionMatrix.filter(function(c){ return c.collided;})
-		.forEach(function(c){
-			c.e1.moving.speed.x+=c.collisionDetails.e1.dSpeedX;
-			c.e1.moving.speed.y+=c.collisionDetails.e1.dSpeedY;
-			c.e1.moving.speed.angle+=c.collisionDetails.e1.dSpeedAngle;
-
-			c.e2.moving.speed.x+=c.collisionDetails.e2.dSpeedX;
-			c.e2.moving.speed.y+=c.collisionDetails.e2.dSpeedY;
-			c.e2.moving.speed.angle+=c.collisionDetails.e2.dSpeedAngle;
-		});
-
-		
-		// when do I apply acceleration? same time as impulsions to avoid a loop, end of collision solving
-		// done in move at the moment, to test
-		
 
 		var toUpdate = controller.elements
 			.map(function(e) {
@@ -145,6 +298,10 @@ var Controller = function(applicationSocket, applicationInstance, autoStart) {
 				controller.removeElement(e);
 			});
 		}
+		
+		if ((new Date()).getTime() - start>40)
+			console.log("Full frame process time : " + ((new Date()).getTime() - start) + ": THIS IS TOOOOO LOOOOOOOOOOOOONG");
+
 	}, 40);
 	
 

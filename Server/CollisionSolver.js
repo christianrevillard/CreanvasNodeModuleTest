@@ -37,11 +37,11 @@ var CollisionSolver = function(controller) {
 			return;
 		}
 			
-		collisionPoints.forEach(
+/*		collisionPoints.forEach(
 		function(cp){
 			console.log("collisionPoint: " + cp.x + "," + cp.y);
 		}		
-		);
+		);*/
 		
 		var 
 			colVectors, speedElement, speedOther, localSpeedElement, localSpeedOther, centerCollisionElement,l1,
@@ -49,7 +49,7 @@ var CollisionSolver = function(controller) {
 		
 		var collisionPoint = getCollisionPoint(collisionPoints);
 
-		console.log("collisionPoint summary : " + collisionPoint.x + "," + collisionPoint.y);
+		//console.log("collisionPoint summary : " + collisionPoint.x + "," + collisionPoint.y);
 
 		colVectors = collisionPoint.vectors;
 			
@@ -118,7 +118,8 @@ var CollisionSolver = function(controller) {
 	this.getCollision = function(element, position, otherElement, otherPosition)
 	{
 		var start = new Date().getTime();
-		
+		/*
+		 * nee to use new-old version
 		var realBox = element.getRealBox();
 		var otherRealBox = otherElement.getRealBox();
 		
@@ -134,15 +135,15 @@ var CollisionSolver = function(controller) {
 
 		if (otherRealBox.bottom < realBox.top)
 			return { collided: false};
-
+*/
 		var collisionPoints = [];
 
-		if (element.getDistance(otherPosition.x, otherPosition.y)<50)
+		if ((position.x-otherPosition.x)*(position.x-otherPosition.x)+(position.y-otherPosition.y)*(position.y-otherPosition.y)<20*20)
 		{
 			var col = { x:(otherPosition.x+position.x)/2,
 						y:(otherPosition.y+position.y)/2};
-			collisionPoints.push({x:col.x, y:col.y-5});
-			collisionPoints.push({x:col.x, y:col.y+5});
+			collisionPoints.push({x:col.x-5, y:col.y});
+			collisionPoints.push({x:col.x+5, y:col.y});
 		}
 			
 			
@@ -152,11 +153,12 @@ var CollisionSolver = function(controller) {
 			return { collided: false};
 		}
 		
-		console.log("Collision. Total time find+update: " + (new Date().getTime()-start));
+		//console.log("Collision. Total time find+update: " + (new Date().getTime()-start));
 
 		return {
 			collided: true,
-			collisionDetails: getCollisionDetails(element, otherElement, collisionPoints)};
+			collisionDetails: getCollisionDetails(element, otherElement, collisionPoints),
+			overlap: 20-Math.sqrt((position.x-otherPosition.x)*(position.x-otherPosition.x)+(position.y-otherPosition.y)*(position.y-otherPosition.y))};
 	};
 };
 

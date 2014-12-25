@@ -135,8 +135,25 @@
 						.forEach(function(element)
 						{
 							element.drawMyself();							
-						});					
-														
+						});			
+					
+					controller.context.lineStyle="black";
+					controller.context.beginPath();
+					
+					for (var i=100;i<700;i+=50)
+					{
+						controller.context.moveTo(i,0);
+						controller.context.lineTo(i,500);
+					}
+
+					for (var i=100;i<500;i+=50)
+					{
+						controller.context.moveTo(0,i);
+						controller.context.lineTo(700,i);
+					}
+					
+					controller.context.stroke();
+
 
 					if (controller.displayMessage)
 					{

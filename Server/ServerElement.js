@@ -66,6 +66,19 @@ var setImage = function(element, elementTemplate) {
 			console.log("READY FOR START !!!!!!!!!!!!!!!");
 			console.log("paused: " + element.controller.paused);
 		}
+		
+		element.boundaryBox = element.getBoundaryBox(element.position);
+		
+		element.broadTiles = element.controller.broadTiles.filter(function(tile){
+			return tile.right>=element.boundaryBox.left &&
+			tile.bottom>=element.boundaryBox.top &&
+			tile.left<=element.boundaryBox.right &&
+			tile.top<=element.boundaryBox.bottom;
+			});
+		
+		element.broadTiles.forEach(function(tile){
+			tile.elements.push(element);
+		});
 	};
 	setTimeout(setElementType, 0);
 	
@@ -290,6 +303,19 @@ Element.prototype.getDistance = function(x,y)
 Element.prototype.getRealCornerEdges  = function()
 {
 	return this.getRealEdges().edges.filter(function(edge){ return edge.isCorner;});
+};
+
+// the new
+Element.prototype.getBoundaryBox  = function(position)
+{
+	//circle here - centered - no scale - radius 50 . TODO:polynom
+	var r = 10;
+	return {
+		left: position.x - r,
+		right: position.x + r,
+		top: position.y - r,
+		bottom: position.y + r,		
+	};
 };
 
 Element.prototype.getRealEdges  = function()

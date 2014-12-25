@@ -35,7 +35,8 @@
 
 		element.controller.context.beginPath();
 		element.elementType.draw(element.controller.context);
-		
+		element.controller.context.fillStyle="black";
+		element.controller.context.fillText("[" + element.id + "]",-20,0);
 		// full reset, avoid to accumulate errors over time
 		element.controller.context.setTransform(1, 0, 0, 1, 0, 0);
 	};
