@@ -1,5 +1,9 @@
 var serverElement = require("./ServerElement");
 
+var round = function(x){
+	return Math.round(100*x)/100;
+}
+
 var Controller = function(applicationSocket, applicationInstance, autoStart) {
 
 	var controller = this;
@@ -11,8 +15,8 @@ var Controller = function(applicationSocket, applicationInstance, autoStart) {
 	this.paused = !autoStart;
 	
 	controller.setInterval(function() {
-		if (controller.paused)
-			console.log("Is paused!");
+	//	if (controller.paused)
+		//	console.log("Is paused!");
 		if (controller.paused)
 			return;
 		time += 10 * timeScale / 1000;
@@ -68,8 +72,11 @@ var Controller = function(applicationSocket, applicationInstance, autoStart) {
 		{				
 			// compute new position, does not update the current one.
 			// .position, .newPosition
+			var old = e.position.y;
 			e.moving.move();
 			e.moving.collided = false;
+			e.history = e.history || [];
+			e.history.unshift(round(currentTime) + ' - moving: from ' + round(old) + ' to ' + round(e.position.y));
 		});
 
 	//	console.log("To completed moves : " + ((new Date()).getTime() - start));
@@ -112,155 +119,225 @@ var Controller = function(applicationSocket, applicationInstance, autoStart) {
 			if (c.status !== undefined)
 				continue;
 			
+			if (!c.e1.previousPosition && !c.e2.previousPosition)
+				continue;
+			
 			var collision = controller.collisionSolver.getCollision(
 				c.e1,
 				c.e1.position,
 				c.e2,
 				c.e2.position);
 			
-			if (collision.collided)
+			if (!collision.collided)
 			{
-				collisionsToCheckTable[c.e1.id][c.e2.id].status = 
-					collisionsToCheckTable[c.e2.id][c.e1.id].status = true;
+				collisionsToCheckTable[c.e1.id][c.e2.id].status = collisionsToCheckTable[c.e2.id][c.e1.id].status = false;
+				continue;
+			}
+			
+			c.e1.history = c.e1.history || [];
+			c.e2.history = c.e2.history || [];
 
-				//console.log('COLLISION : ' + c.e1.id + ' / ' + c.e2.id);
-				c.collided = collision.collided;
-				c.collisionDetails = collision.collisionDetails; // point at least. F already?
-				c.e1.moving.collided = true;
-				c.e2.moving.collided = true;
-				
-				var stuff=0.95;
-				
-				c.e1.moving.speed.x+=stuff*c.collisionDetails.e1.dSpeedX;
-				c.e1.moving.speed.y+=stuff*c.collisionDetails.e1.dSpeedY;
-				c.e1.moving.speed.angle+=stuff*c.collisionDetails.e1.dSpeedAngle;
+			c.e1.history.unshift(round(currentTime) + ' - treating collision with ' + c.e2.id);
+			c.e2.history.unshift(round(currentTime) + ' - treating collision with ' + c.e1.id);
+			
+			collisionsToCheckTable[c.e1.id][c.e2.id].status = 
+				collisionsToCheckTable[c.e2.id][c.e1.id].status = true;
 
-				c.e2.moving.speed.x+=stuff*c.collisionDetails.e2.dSpeedX;
-				c.e2.moving.speed.y+=stuff*c.collisionDetails.e2.dSpeedY;
-				c.e2.moving.speed.angle+=stuff*c.collisionDetails.e2.dSpeedAngle;
-						
-				// broad: find tiles for old and add all collisions with new inside this tile.
+			//console.log('COLLISION : ' + c.e1.id + ' / ' + c.e2.id);
+			c.collided = collision.collided;
+			c.collisionDetails = collision.collisionDetails; // point at least. F already?
+			c.e1.moving.collided = true;
+			c.e2.moving.collided = true;
+			
+			var stuff=0.95;
+			
+			c.e1.moving.speed.x+=stuff*c.collisionDetails.e1.dSpeedX;
+			c.e1.moving.speed.y+=stuff*c.collisionDetails.e1.dSpeedY;
+			c.e1.moving.speed.angle+=stuff*c.collisionDetails.e1.dSpeedAngle;
 
-				var beforeUpdate = collisionsToCheck.length;
-
-				/*if (c.e1.previousPosition && !c.e2.previousPosition)
-				{
-					//can I get the correct overlap??? otherwise, try dichotomy
-
-					// all overlap on 1 
-					// todo, not only on y-
-					var triedMove1 = Math.abs(c.e1.position.y - c.e1.previousPosition.y);
-					var actualMove1 = triedMove1-collision.overlap 
-					c.e1.dt =  c.e1.dt*actualMove1/triedMove1;
-					c.e1.position = c.e1.previousPosition;
-					c.e1.scale = c.e1.previousScale;
-					c.e1.moving.move(true);
-				}
-
-								if (c.e2.previousPosition && !c.e1.previousPosition)
-				{
+			c.e2.moving.speed.x+=stuff*c.collisionDetails.e2.dSpeedX;
+			c.e2.moving.speed.y+=stuff*c.collisionDetails.e2.dSpeedY;
+			c.e2.moving.speed.angle+=stuff*c.collisionDetails.e2.dSpeedAngle;
 					
-					// all overlap on 2 
-					// todo, not only on y-
-					var triedMove2 = Math.abs(c.e2.position.y - c.e2.previousPosition.y);
-					var actualMove2 = triedMove2-collision.overlap 
-					c.e2.dt =  c.e2.dt*actualMove2/triedMove2;
-					c.e2.position = c.e2.previousPosition;
-					c.e2.scale = c.e2.previousScale;
-					c.e2.moving.move(true);
-				}
+			// broad: find tiles for old and add all collisions with new inside this tile.
 
-				if (c.e2.previousPosition && c.e1.previousPosition)
-				{
-					//todo, repartition...
-					c.e1.position = c.e1.previousPosition;
-					c.e2.position = c.e2.previousPosition;
-				}*/
+			var beforeUpdate = collisionsToCheck.length;				
+
+			c.e1.okPosition = c.e1.previousPosition || c.e1.position;
+			c.e2.okPosition = c.e2.previousPosition || c.e2.position;
+			c.e1.collidedPosition = c.e1.position;
+			c.e2.collidedPosition = c.e2.position;
+
+			c.e1.history.unshift(round(currentTime) + ' - did not collid at ' + round(c.e1.okPosition.y) + ' with ' + c.e2.id + ' at ' + round(c.e2.okPosition.y) + " (" + Math.abs(round(c.e1.okPosition.y-c.e2.okPosition.y)) + ")");
+			c.e2.history.unshift(round(currentTime) + ' - did not collid at ' + round(c.e2.okPosition.y) + ' with ' + c.e1.id + ' at ' + round(c.e1.okPosition.y)+ " (" + Math.abs(round(c.e1.okPosition.y-c.e2.okPosition.y)) + ")");
+			c.e1.history.unshift(round(currentTime) + ' - collided at ' + round(c.e1.position.y) + ' with ' + c.e2.id + ' at ' + round(c.e2.position.y)+ " (" + Math.abs(round(c.e1.position.y-c.e2.position.y)) + ")");
+			c.e2.history.unshift(round(currentTime) + ' - collided at ' + round(c.e2.position.y) + ' with ' + c.e1.id + ' at ' + round(c.e1.position.y)+ " (" + Math.abs(round(c.e1.position.y-c.e2.position.y)) + ")");
+			
+//				console.log(c.e1.id + "-" + c.e2.id + " : UNCOLLIDED : " + c.e1.okPosition.y + "," + c.e2.okPosition.y);
+//				console.log(c.e1.id + "-" + c.e2.id + " : COLLIDED : " + c.e1.position.y + "," + c.e2.position.y);
+
+			var step = 2; // tood, use distance or stuff, here just 4 iterations
+			while (step>0)
+			{
+				step--;
+				c.e1.testingPosition = c.e1.previousPosition?{
+						x:(c.e1.collidedPosition.x+c.e1.okPosition.x)/2,
+						y:(c.e1.collidedPosition.y+c.e1.okPosition.y)/2,
+						angle:(c.e1.collidedPosition.angle+c.e1.okPosition.angle)/2,
+						z:c.e1.position.z
+				}:c.e1.position;
 				
-				c.e1.newPosition = c.e1.position;
-				c.e2.newPosition = c.e2.position;
-
-				var t=1;
-				do{
-					t-=0.1;
-					if (c.e1.previousPosition)
-					{
-						c.e1.position = {
-							x:c.e1.previousPosition.x+t*(c.e1.newPosition.x-c.e1.previousPosition.x),
-							y:c.e1.previousPosition.y+t*(c.e1.newPosition.y-c.e1.previousPosition.y),
-							z:c.e1.position.z,
-							angle:c.e1.position.angle
-						};
-					}
-					if (c.e2.previousPosition)
-					{
-						c.e2.position = {
-							x:c.e2.previousPosition.x+t*(c.e2.newPosition.x-c.e2.previousPosition.x),
-							y:c.e2.previousPosition.y+t*(c.e2.newPosition.y-c.e2.previousPosition.y),
-							z:c.e2.position.z,
-							angle:c.e2.position.angle
-						};
-					}
-					
-				} while (t>0 && controller.collisionSolver.getCollision(
+				c.e2.testingPosition = c.e2.previousPosition?{
+						x:(c.e2.collidedPosition.x+c.e2.okPosition.x)/2,
+						y:(c.e2.collidedPosition.y+c.e2.okPosition.y)/2,
+						angle:(c.e2.collidedPosition.angle+c.e2.okPosition.angle)/2,
+						z:c.e2.position.z
+				}:c.e2.position;
+				
+				if (controller.collisionSolver.getCollision(
 						c.e1,
-						c.e1.position,
+						c.e1.testingPosition,
 						c.e2,
-						c.e2.position).collided);
-								
-				if (c.e1.previousPosition)
+						c.e2.testingPosition).collided)
 				{
-					if (t<=0.01)
-					{
-						c.e1.previousPosition = null;
-						c.e1.dt = 0;
-					}
-					else
-					{
-						c.e1.dt = t*c.e1.dt;
-					}
-					
-					c.e1.boundaryBox = c.e1.getBoundaryBox(c.e1.position);
+					c.e1.history.unshift(round(currentTime) + ' - TEST does collid at ' + round(c.e1.testingPosition.y) + ' with ' + c.e2.id + ' at ' + round(c.e2.testingPosition.y)+ " (" + Math.abs(round(c.e1.testingPosition.y-c.e2.testingPosition.y)) + ")");
+					c.e2.history.unshift(round(currentTime) + ' - TEST does collid at ' + round(c.e2.testingPosition.y) + ' with ' + c.e1.id + ' at ' + round(c.e1.testingPosition.y)+ " (" + Math.abs(round(c.e1.testingPosition.y-c.e2.testingPosition.y)) + ")");
 
-					collisionsToCheckTable[c.e1.id]
-						.filter(function(cell){ return cell.status === false })
-						.forEach(function(cell){
-							collisionsToCheckTable[cell.e1.id][cell.e2.id].status = 
-							collisionsToCheckTable[cell.e2.id][cell.e1.id].status = undefined;
-							collisionsToCheck.push(collisionsToCheckTable[cell.e1.id][cell.e2.id]);
-						});
+//						console.log(c.e1.id + "-" + c.e2.id + " : COLLISION : " + c.e1.testingPosition.y + "," + c.e2.testingPosition.y);
+					c.e1.collidedPosition = c.e1.testingPosition;
+					c.e2.collidedPosition = c.e2.testingPosition;
 				}
-
-				//TODO unduplicate
-				if (c.e2.previousPosition)
+				else
 				{
-					if (t<=0.01)
-					{
-						c.e2.previousPosition = null;
-						c.e2.dt = 0;
-					}
-					else
-					{
-						c.e2.dt = t*c.e2.dt;
-					}
+					c.e1.history.unshift(round(currentTime) + ' - TEST does not collid at ' + round(c.e1.testingPosition.y) + ' with ' + c.e2.id + ' at ' + round(c.e2.testingPosition.y)+ " (" + Math.abs(round(c.e1.testingPosition.y-c.e2.testingPosition.y)) + ")");
+					c.e2.history.unshift(round(currentTime) + ' - TEST does not collid at ' + round(c.e2.testingPosition.y) + ' with ' + c.e1.id + ' at ' + round(c.e1.testingPosition.y)+ " (" + Math.abs(round(c.e1.testingPosition.y-c.e2.testingPosition.y)) + ")");
 
-					c.e2.boundaryBox = c.e2.getBoundaryBox(c.e2.position);
-					
-					collisionsToCheckTable[c.e2.id]
-					.filter(function(cell){ return cell.status === false })
+					//console.log(c.e1.id + "-" + c.e2.id + " : NO COLLISION : " + c.e1.testingPosition.y + "," + c.e2.testingPosition.y);
+					//console.log(c.e2.id + " - can use y=" + c.e2.testingPosition.y + " instead of " + c.e2.okPosition.y);
+					c.e1.okPosition = c.e1.testingPosition;
+					c.e2.okPosition = c.e2.testingPosition;
+				}
+			}
+
+			c.e1.history.unshift(round(currentTime) + ' - after test, let us use ' + round(c.e1.okPosition.y));
+			c.e2.history.unshift(round(currentTime) + ' - after test, let us use ' + round(c.e2.okPosition.y));
+
+			c.e1.position = c.e1.okPosition;
+			c.e2.position = c.e2.okPosition;
+			
+			//console.log("");
+			
+			if (c.e1.previousPosition)
+			{
+				if (Math.abs(c.e1.previousPosition.y-c.e1.position.y)<0.01)
+				{
+					c.e1.position = c.e1.previousPosition;
+					c.e1.previousPosition = null;
+					c.e1.dt = 0;
+				}
+//					else
+//					{
+//						c.e1.dt = t*c.e1.dt;
+//					}
+				
+				c.e1.boundaryBox = c.e1.getBoundaryBox(c.e1.position);
+
+				collisionsToCheckTable[c.e1.id]
+				.filter(function(cell){ return cell.status !== undefined })
 					.forEach(function(cell){
 						collisionsToCheckTable[cell.e1.id][cell.e2.id].status = 
 						collisionsToCheckTable[cell.e2.id][cell.e1.id].status = undefined;
 						collisionsToCheck.push(collisionsToCheckTable[cell.e1.id][cell.e2.id]);
 					});
-				}
 			}
-			else
+
+			//TODO unduplicate
+			if (c.e2.previousPosition)
 			{
-				collisionsToCheckTable[c.e1.id][c.e2.id].status = collisionsToCheckTable[c.e2.id][c.e1.id].status = false;
+				if (Math.abs(c.e2.previousPosition.y-c.e2.position.y)<0.01)
+				{
+					c.e2.position = c.e2.previousPosition;
+					c.e2.previousPosition = null;
+					c.e2.dt = 0;
+				}
+
+				c.e2.boundaryBox = c.e2.getBoundaryBox(c.e2.position);
+				
+				collisionsToCheckTable[c.e2.id]
+				.filter(function(cell){ return cell.status !== undefined })
+				.forEach(function(cell){
+					collisionsToCheckTable[cell.e1.id][cell.e2.id].status = 
+					collisionsToCheckTable[cell.e2.id][cell.e1.id].status = undefined;
+					collisionsToCheck.push(collisionsToCheckTable[cell.e1.id][cell.e2.id]);
+				});
 			}
 		};
 
+		controller
+		.elements
+		.filter(function(e){return e.moving;})
+		.forEach(function(e1){
+			controller
+			.elements
+			.filter(function(e){return e.moving && e.id>e1.id;})
+			.forEach(function(e2){
+
+				if (Math.abs(e1.position.x-e2.position.x)<1 && Math.abs(e1.position.y-e2.position.y)<20)
+				{
+					console.log("");
+					console.log(e1.id + "-" + e2.id + " should have collided: " + round(e1.position.y) + ", " + round(e2.position.y) + "(" + Math.abs(round(e1.position.y-e2.position.y)) + ")");
+					console.log("collided now: " + controller.collisionSolver.getCollision(
+							e1,
+							e1.position,
+							e2,
+							e2.position).collided);
+
+					console.log("checktable: " +
+						(collisionsToCheckTable[e1.id]?
+								(collisionsToCheckTable[e1.id][e2.id]?collisionsToCheckTable[e1.id][e2.id].status:undefined):
+								(undefined)) 
+					);
+					
+					
+					console.log("");
+					for (var i=0; i<20 && i<e1.history.length; i++)
+					{
+						console.log(e1.id + "-" + e1.history[i]);					
+					}
+
+					console.log("");
+					for (var i=0; i<20 && i<e2.history.length; i++)
+					{
+						console.log(e2.id + "-" + e2.history[i]);					
+					}
+
+//					console.log(e1.id + "-" + e2.id + " HOUSTON WE'VE GOT A PROBLEM !! - ");
+					
+					controller.pause();
+					return;
+				}
+				
+			});
+			
+			if (Math.abs(e1.position.y)>501 && e1.solid.mass<Infinity)
+			{
+				
+				console.log("");
+				for (var i=0; i<20 && i<e1.history.length; i++)
+				{
+					console.log(e1.id + "-" + e1.history[i]);					
+				}
+				
+				controller.pause();
+				return;
+			}
+
+			
+		});
+
+		
+
+		
 		controller
 		.elements
 		.filter(function(e){return e.moving;})
