@@ -46,7 +46,7 @@ var MovingElement = function(parent, elementMoving)
 	moving.lastUpdated = moving.parent.controller.getTime();
 };
 
-MovingElement.prototype.move = function(useExistingDt)
+MovingElement.prototype.xxmove = function(useExistingDt)
 {
 //	var rollbackData;
 	
@@ -184,7 +184,7 @@ MovingElement.prototype.move = function(useExistingDt)
 
 };
 
-MovingElement.prototype.accelerate = function()
+MovingElement.prototype.xxaccelerate = function()
 {
 	var moving = this;
 	
@@ -194,5 +194,136 @@ MovingElement.prototype.accelerate = function()
 	moving.speed.x += moving.acceleration.x * moving.parent.dt;
 	moving.speed.y += moving.acceleration.y * moving.parent.dt;			
 };
+
+// do not take previous here, do it at caller
+
+MovingElement.prototype.commitMove = function(updates)
+{	
+	if(!updates.dt)
+		return;
+
+	var moving = this;
+
+	moving.parent.position.x = updates.position.x || 0;
+	moving.parent.position.y = updates.position.y || 0;
+	moving.parent.position.angle = updates.position.angle || 0;
+
+	moving.speed.x = updates.speed.x || 0;
+	moving.speed.y = updates.speed.y || 0;	
+	moving.speed.angle = updates.speed.angle || 0;	
+
+	moving.parent.scale.x = updates.scale.x || 1;
+	moving.parent.scale.y = updates.scale.y || 1;
+	
+	moving.parent.boundaryBox = updates.boundaryBox;
+}
+
+MovingElement.prototype.move = function(dt)
+{	
+	var moving = this;
+
+	// deltas, to avoid storing previous !
+	var updates = { 
+		dt: dt, 
+		position: {x: moving.parent.position.x,y: moving.parent.position.y},
+		speed:{},
+		scale:{}
+	};
+	
+	if (dt == 0)
+	{
+		return updates;
+	}
+		
+	updates.speed.x = moving.speed.x + moving.acceleration.x * dt;
+	updates.speed.y = moving.speed.y + moving.acceleration.y * dt;				
+	
+	if (updates.speed.x==0 && updates.speed.y==0 && updates.speed.angle==0) // tood add scale
+	{
+		updates.dt=0;
+		return updates;
+	}
+
+	updates.position.x = moving.parent.position.x + moving.speed.x * dt; 
+	updates.position.y = moving.parent.position.y + moving.speed.y * dt; 
+	updates.position.angle = moving.parent.position.angle + moving.speed.angle * dt;
+	updates.scale.x = moving.parent.scale.x + moving.scaleSpeed?moving.scaleSpeed.x * dt : 0;
+	updates.scale.x = moving.parent.scale.y + moving.scaleSpeed?moving.scaleSpeed.y * dt : 0;
+	
+
+	if (updates.position.x > moving.movingLimits.xMax)
+	{
+		updates.position.x = moving.movingLimits.xMax; 
+	}
+
+	if (updates.position.x < moving.movingLimits.xMin)
+	{
+		updates.position.x = moving.movingLimits.xMin; 
+	}
+
+	if (moving.parent.position.y > moving.movingLimits.yMax) 				
+	{
+		updates.position.y = moving.movingLimits.yMax; 
+	}
+
+	if (moving.parent.position.y < moving.movingLimits.yMin) 				
+	{
+		updates.position.y = moving.movingLimits.yMin; 
+	}
+
+	updates.boundaryBox = moving.parent.getBoundaryBox(updates.position);
+	
+
+	/*
+	if (moving.targetElementX !== undefined)
+	{
+		if ( 
+		(moving.targetElementX-moving.parent.position.x)*(moving.targetElementX-moving.parent.position.x)<1
+		&& (moving.targetElementY-moving.parent.position.y)*(moving.targetElementY-moving.parent.position.y) <1)
+		{
+			moving.targetElementX = moving.targetElementY = undefined;
+			moving.speed = moving.originalSpeed || { x:0, y:0, angle:0};
+		}
+	}
+*/
+	//moving.parent.previousTiles = moving.parent.broadTiles;
+	
+	moving.parent.broadTiles.forEach(function(tile){
+		// remove from all tiles
+		tile.elements = tile.elements.filter(function(remove){ return moving.parent.id != remove.id});
+	});
+	
+	// in both positions - so matrix prefilled with all possibilities - aviod to rerun broad phase
+	moving.parent.broadTiles = moving.parent.controller.broadTiles.filter(function(tile){
+		return (tile.right>=moving.parent.boundaryBox.left &&
+				tile.bottom>=moving.parent.boundaryBox.top &&
+				tile.left<=moving.parent.boundaryBox.right &&
+				tile.top<=moving.parent.boundaryBox.bottom)
+				||
+				(tile.right>=updates.boundaryBox.left &&
+						tile.bottom>=updates.boundaryBox.top &&
+						tile.left<=updates.boundaryBox.right &&
+						tile.top<=updates.boundaryBox.bottom);
+		});
+	
+	moving.parent.broadTiles.forEach(function(tile){
+		tile.elements.push(moving.parent);
+	});
+
+	return updates;
+};
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 exports.applyTo = applyTo;

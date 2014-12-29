@@ -259,6 +259,22 @@ Element.prototype.getRealXYFromElementXY  = function(xY)
 	return xy;
 };
 
+Element.prototype.addHistory = function(info){
+	this.history = this.history || [];
+	this.history.unshift(this.id + ' - ' + this.round(this.controller.getTime()) + ' - ' + info);	
+};
+
+Element.prototype.displayHistory = function(count) {
+	for (var i=0; i<count && i<this.history.length; i++)
+	{
+		console.log(this.history[i]);					
+	}
+};
+
+Element.prototype.round = function(x){
+	return Math.round(10000*x)/10000;
+};
+
 Element.prototype.getElementXYFromRealXY = function(real)
 {		
 	var element = this;
